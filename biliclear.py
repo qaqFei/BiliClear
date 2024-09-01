@@ -94,8 +94,8 @@ while True:
                     report(reply, r)
                 else:
                     print(f" not porn, {time.time()}\r", end="")
-            time.sleep(0.75)
-    except (StopAsyncIteration, KeyboardInterrupt) as e:
+            time.sleep(1.25)
+    except (Exception, KeyboardInterrupt) as e:
         print("err", e)
         if e is KeyboardInterrupt or isinstance(e, KeyboardInterrupt):
             break
