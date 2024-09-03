@@ -126,10 +126,19 @@ def processReply(reply: dict):
 def setMethod():
     global method
     method = None
-    while method not in ["1", "2"]:
+    method_choices = {
+        "1": "自动获取推荐视频评论",
+        "2": "获取指定视频评论"
+    }
+    
+    while method not in method_choices.keys():
         if method is not None:
             print("输入错误")
-        method = input("1.自动获取推荐视频评论\n2.获取指定视频评论\n选择: ")
+        
+        print("tip: 请定期检查bilibili cookie是否过期\n")
+        for k, v in method_choices.items():
+            print(f"{k}. {v}")
+        method = input("选择: ")
         system("cls")
         
 def bvid2avid(bvid: str):

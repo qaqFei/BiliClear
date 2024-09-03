@@ -10,3 +10,5 @@
 - 程序运行出现异常 (与`config.json`相关的):
     - 修改`config.json`, 更新`bilibili cookie`, 修改邮箱`STMP`密钥
     - 删除`config.json`, 重新输入参数
+- `bilibili cookie`过期导致的现象
+    - 获取评论为空, 不会打印` not porn ......`
