@@ -21,11 +21,31 @@ if not exists("./config.json"):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         "Cookie": getpass("bilibili cookie: ")
     }
+    
+    smtps = {
+        "@mali.aliyun.com": "server = smtp.aliyun.com, port = 465",
+        "@google.com": "server = smtp.gmail.com, port = 587",
+        "@sina.com": "server = smtp.sina.com.cn, port = 25",
+        "@top.com": "server = smtp.tom.com, port = 25",
+        "@163.com": "server = smtp.163.com, port = 465",
+        "@126.com": "server = smtp.126.com, port = 25",
+        "@yahoo.com.cn": "server = smtp.mail.yahoo.com.cn, port = 587",
+        "@foxmail.com": "server = smtp.foxmail.com, port = 25",
+        "@sohu.com": "server = smtp.sohu.com, port = 25"
+    }
+    print("\nsmtp servers:")
+    for k, v in smtps.items():
+        print(f"    {k}: {v}")
+    smtp_server = input("\nsmtp server: ")
+    smtp_port = int(input("smtp port: "))
+    
     with open("./config.json", "w", encoding="utf-8") as f:
         f.write(json.dumps({
             "sender_email": sender_email,
             "sender_password": sender_password,
-            "headers": headers
+            "headers": headers,
+            "smtp_server": smtp_server,
+            "smtp_port": smtp_port
         }, indent=4, ensure_ascii=False))
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
@@ -33,6 +53,8 @@ else:
         sender_email = config["sender_email"]
         sender_password = config["sender_password"]
         headers = config["headers"]
+        smtp_server = config["smtp_server"]
+        smtp_port = config["smtp_port"]
 
 system("cls")
 
@@ -110,7 +132,7 @@ def report(data: dict, r: str):
     msg["From"] = Header("Report", "utf-8")
     msg["To"] = Header("Bilibili", "utf-8")
     msg["Subject"] = Header("违规内容举报", "utf-8")
-    smtp_con = smtplib.SMTP_SSL("smtp.163.com", 465)
+    smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
     smtp_con.login(sender_email, sender_password)
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
     smtp_con.quit()
