@@ -5,23 +5,30 @@ from email.mime.text import MIMEText
 from email.header import Header
 from os import system
 from getpass import getpass
-
 import requests
 
+# 用户输入发送报告的邮箱和密码，并设置请求头
 sender_email = input("report sender email: ")
 sender_password = getpass("report sender password: ")
-headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36", "Cookie": getpass("bilibili cookie: ")}
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Cookie": getpass("bilibili cookie: ")
+}
 system("cls")
 
+# 获取B站首页的动态视频列表
 def getVideos():
-    return [i["param"] for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"] if i.get("can_play", 0)]
-    
+    response = requests.get("https://app.bilibili.com/x/v2/feed/index", headers=headers)
+    return [i["param"] for i in response.json()["data"]["items"] if i.get("can_play", 0)]
+
+# 获取指定视频的评论
 def getReplys(avid: int):
     maxNum = 100
     page = 1
     replies = []
     while page * 20 <= maxNum:
-        result = requests.get(f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20", headers=headers).json()
+        response = requests.get(f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20", headers=headers)
+        result = response.json()
         try:
             replies += result["data"]["replies"]
         except Exception:
@@ -29,8 +36,9 @@ def getReplys(avid: int):
         page += 1
     return replies
 
+# 检测评论是否包含色情信息
 def isPorn(text: str):
-    rs = [
+    rules = [
         '"动态" in text and "好东西" in text',
         '"今晚" in text and "动态" in text',
         '"最让我难以忘怀的是" in text and "真的好猛" in text',
@@ -54,11 +62,12 @@ def isPorn(text: str):
         '"舞蹈了" in text and "练习" in text and "开心了" in text',
         '"你可能不知道" in text and "在" in text and "叫" in text',
     ]
-    for r in rs:
-        if eval(r):
-            return True, r
+    for rule in rules:
+        if eval(rule):
+            return True, rule
     return False, None
 
+# 发送举报邮件
 def report(data: dict, r: str):
     report_text = f"""
 违规用户UID：{data["mid"]}
@@ -84,18 +93,19 @@ def report(data: dict, r: str):
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
     smtp_con.quit()
 
+# 主循环，持续监控并举报违规评论
 while True:
     try:
         for avid in getVideos():
             for reply in getReplys(avid):
-                isp, r = isPorn(reply["content"]["message"])
+                isp, rule = isPorn(reply["content"]["message"])
                 if isp:
                     print("porn", repr(reply["content"]["message"]))
-                    report(reply, r)
+                    report(reply, rule)
                 else:
                     print(f" not porn, {time.time()}\r", end="")
             time.sleep(1.25)
     except (Exception, KeyboardInterrupt) as e:
         print("err", e)
-        if e is KeyboardInterrupt or isinstance(e, KeyboardInterrupt):
+        if isinstance(e, KeyboardInterrupt):
             break
