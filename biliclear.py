@@ -24,7 +24,7 @@ def getVideos():
         if i.get("can_play", 0)
     ]
 
-def getReplys(avid: str):
+def getReplys(avid: str|int):
     maxNum = 100
     page = 1
     replies = []
