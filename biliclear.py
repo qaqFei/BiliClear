@@ -120,7 +120,7 @@ def report(data: dict, r: str):
 def processReply(reply: dict):
     isp, r = isPorn(reply["content"]["message"])
     if isp:
-        print("porn", repr(reply["content"]["message"]))
+        print("porn", repr(reply["content"]["message"]), "\nrule:", r, "\n")
         report(reply, r)
     else:
         print(f" not porn, {time.time()}\r", end="")
