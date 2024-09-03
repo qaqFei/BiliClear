@@ -40,13 +40,6 @@ def getReplys(avid: str):
         page += 1
     return replies
 
-def getID(link: str):
-    segments = link.split('/')
-    for segment in segments:
-        if segment.startswith('AV') or segment.startswith('BV'):
-            return segment
-    return None
-
 def isPorn(text: str):
     rs = [
         '"动态" in text and "好东西" in text',
@@ -118,6 +111,13 @@ def setMethod():
             print("输入错误")
         method = input("1.自动获取推荐视频评论\n2.获取指定视频评论\n选择: ")
         system("cls")
+        
+def bvid2avid(bvid: str):
+    result = requests.get(
+        f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
+        headers=headers
+    ).json()
+    return result["data"]["aid"]
 
 setMethod()
 while True:
@@ -131,12 +131,11 @@ while True:
             case "2":
                 system("cls")
                 link = input("输入视频bvid: ")
-                videoID = getID(link)
-                if videoID is not None:
-                    for reply in getReplys(videoID):
-                        processReply(reply)
-                else:
-                    print("链接格式错误")
+                for reply in getReplys(bvid2avid(link)):
+                    processReply(reply)
+                time.sleep(1.25)
+            case _:
+                print("链接格式错误")
     except (Exception, KeyboardInterrupt) as e:
         print("err", e)
         if e is KeyboardInterrupt or isinstance(e, KeyboardInterrupt):
