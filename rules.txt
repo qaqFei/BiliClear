@@ -8,6 +8,7 @@
 "http" in text and "https" not in text
 "请叫我英雄" in text and "妹妹" in text and text.count("个") >= 2
 "每次呼吸" in text and "停一停" in text and text.count("[") >= 2
+".co" in text and ".com" not in text and "http" in text and text.count("[") >= 2
 "真不错" in text and "大" in text and "天然的" in text
 "选择" in text and "服从" in text and "当然" in text
 "是不是" in text and "我想" in text and "一探究竟" in text
