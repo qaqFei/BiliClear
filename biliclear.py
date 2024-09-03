@@ -1,3 +1,4 @@
+from email.utils import formataddr
 import smtplib
 import json
 import time
@@ -5,12 +6,19 @@ from email.mime.text import MIMEText
 from email.header import Header
 from os import system
 from getpass import getpass
+import configparser
+import re
 
 import requests
 
-sender_email = input("report sender email: ")
-sender_password = getpass("report sender password: ")
-headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36", "Cookie": getpass("bilibili cookie: ")}
+config = configparser.ConfigParser(interpolation=None)
+config.read('config.ini')
+
+#sender_email = input("report sender email: ")
+#sender_password = getpass("report sender password: ")
+sender_email = config['Email']['sender_email']
+sender_password = config['Email']['sender_password']
+headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36", "Cookie": config['Browse']['cookie']}
 system("cls")
 
 def getVideos():
@@ -76,10 +84,16 @@ def report(data: dict, r: str):
 评论内容匹配到的规则: {r}
 """
     msg = MIMEText(report_text, "plain", "utf-8")
-    msg["From"] = Header("Report", "utf-8")
+    #处理QQ邮箱From特殊情况Please follow RFC5322, RFC2047, RFC822 standard protocol. https://service.mail.qq.com/detail/124/995
+    if re.search(r'qq', config['Email']['smtp_address']):
+    # 对于QQ邮箱，使用 Report 作为昵称
+        msg["From"] = formataddr((Header("Report", "utf-8").encode(), sender_email))
+    else:
+    # 对于其他邮箱，确保昵称符合RFC标准
+        msg["From"] = formataddr((Header("Report", "utf-8").encode(), sender_email))
     msg["To"] = Header("Bilibili", "utf-8")
     msg["Subject"] = Header("违规内容举报", "utf-8")
-    smtp_con = smtplib.SMTP_SSL("smtp.163.com", 465)
+    smtp_con = smtplib.SMTP_SSL(config['Email']['smtp_address'], config['Email']['smtp_port'])
     smtp_con.login(sender_email, sender_password)
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
     smtp_con.quit()
