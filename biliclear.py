@@ -138,5 +138,5 @@ while True:
                 print("链接格式错误")
     except (Exception, KeyboardInterrupt) as e:
         print("err", e)
-        if e is KeyboardInterrupt or isinstance(e, KeyboardInterrupt):
+        if isinstance(e, KeyboardInterrupt):
             break
