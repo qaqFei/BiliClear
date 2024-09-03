@@ -56,6 +56,9 @@ else:
         smtp_server = config["smtp_server"]
         smtp_port = config["smtp_port"]
 
+with open("./rules.txt", "r", encoding="utf-8") as f:
+    rules = list(filter(lambda x: x, f.read().splitlines()))
+
 system("cls")
 
 
@@ -83,33 +86,9 @@ def getReplys(avid: str|int):
     return replies
 
 def isPorn(text: str):
-    rs = [
-        '"动态" in text and "好东西" in text',
-        '"今晚" in text and "动态" in text',
-        '"最让我难以忘怀的是" in text and "真的好猛" in text',
-        '"草坪练习" in text and "对光" in text',
-        '"白天去美食火锅推荐，热辣过瘾" in text',
-        '"在想你" in text and "而你在" in text',
-        '"练习了" in text and "还是需要努力" in text and "感觉" in text',
-        '"http" in text and "https" not in text',
-        '"请叫我英雄" in text and "妹妹" in text and text.count("个") >= 2',
-        '"每次呼吸" in text and "停一停" in text and text.count("[") >= 2',
-        '".co" in text and "http" in text and text.count("[") >= 2',
-        '"真不错" in text and "大" in text and "天然的" in text',
-        '"选择" in text and "服从" in text and "当然" in text',
-        '"是不是" in text and "我想" in text and "一探究竟" in text',
-        '"忘记" in text and "炸了" in text and "几" in text',
-        '"嘻嘻嘻" in text and "别管" in text and "清楚" in text',
-        '"动作" in text and "上不来" in text and "感觉" in text',
-        '"小贺" in text and "这边的" in text',
-        '"密" in text and "桃" in text and "一样" in text',
-        '"小蝴蝶" in text and "细节" in text and "！" in text',
-        '"舞蹈了" in text and "练习" in text and "开心了" in text',
-        '"你可能不知道" in text and "在" in text and "叫" in text',
-    ]
-    for r in rs:
-        if eval(r):
-            return True, r
+    for rule in rules:
+        if eval(rule):
+            return True, rule
     return False, None
 
 def report(data: dict, r: str):
