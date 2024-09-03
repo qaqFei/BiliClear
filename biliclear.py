@@ -2,6 +2,7 @@ import smtplib
 import json
 import time
 import sys
+import re # used for rules matching
 from email.mime.text import MIMEText
 from email.header import Header
 from os import system, chdir
@@ -57,7 +58,7 @@ else:
         smtp_port = config["smtp_port"]
 
 with open("./rules.txt", "r", encoding="utf-8") as f:
-    rules = list(filter(lambda x: x, f.read().splitlines()))
+    rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
 system("cls")
 
