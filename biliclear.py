@@ -12,23 +12,27 @@ sender_email = input("report sender email: ")
 sender_password = getpass("report sender password: ")
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-    "Cookie": getpass("bilibili cookie: ")}
+    "Cookie": getpass("bilibili cookie: ")
+}
 system("cls")
 
 
 def getVideos():
-    return [i["param"] for i in
-            requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"] if
-            i.get("can_play", 0)]
-
+    return [
+        i["param"]
+        for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
+        if i.get("can_play", 0)
+    ]
 
 def getReplys(avid: str):
     maxNum = 100
     page = 1
     replies = []
     while page * 20 <= maxNum:
-        result = requests.get(f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
-                              headers=headers).json()
+        result = requests.get(
+            f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
+            headers=headers
+        ).json()
         try:
             replies += result["data"]["replies"]
         except Exception:
@@ -36,15 +40,12 @@ def getReplys(avid: str):
         page += 1
     return replies
 
-
 def getID(link: str):
     segments = link.split('/')
     for segment in segments:
         if segment.startswith('AV') or segment.startswith('BV'):
             return segment
     return None
-
-
 
 def isPorn(text: str):
     rs = [
@@ -76,7 +77,6 @@ def isPorn(text: str):
             return True, r
     return False, None
 
-
 def report(data: dict, r: str):
     report_text = f"""
 违规用户UID：{data["mid"]}
@@ -102,33 +102,41 @@ def report(data: dict, r: str):
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
     smtp_con.quit()
 
+def processReply(reply: dict):
+    isp, r = isPorn(reply["content"]["message"])
+    if isp:
+        print("porn", repr(reply["content"]["message"]))
+        report(reply, r)
+    else:
+        print(f" not porn, {time.time()}\r", end="")
 
+def setMethod():
+    global method
+    method = None
+    while method not in ["1", "2"]:
+        if method is not None:
+            print("输入错误")
+        method = input("1.自动获取推荐视频评论\n2.获取指定视频评论\n选择: ")
+        system("cls")
+
+setMethod()
 while True:
     try:
-        method = int(input("1.自动获取推荐视频评论\n2.获取指定视频评论\n选择："))
-        if method == 1:
-            for avid in getVideos():
-                for reply in getReplys(avid):
-                    isp, r = isPorn(reply["content"]["message"])
-                    if isp:
-                        print("porn", repr(reply["content"]["message"]))
-                        report(reply, r)
-                    else:
-                        print(f" not porn, {time.time()}\r", end="")
-                time.sleep(1.25)
-        elif method == 2:
-            link = input("输入视频分享链接或a/bvid：")
-            videoID = getID(link)
-            if videoID is not None:
-                for reply in getReplys(videoID):
-                    isp, r = isPorn(reply["content"]["message"])
-                    if isp:
-                        print("porn", repr(reply["content"]["message"]))
-                        report(reply, r)
-                    else:
-                        print(f" not porn, {time.time()}\r", end="")
-        else:
-            print('输入错误，请输入1或2')
+        match method:
+            case "1":
+                for avid in getVideos():
+                    for reply in getReplys(avid):
+                        processReply(reply)
+                    time.sleep(1.25)
+            case "2":
+                system("cls")
+                link = input("输入视频bvid: ")
+                videoID = getID(link)
+                if videoID is not None:
+                    for reply in getReplys(videoID):
+                        processReply(reply)
+                else:
+                    print("链接格式错误")
     except (Exception, KeyboardInterrupt) as e:
         print("err", e)
         if e is KeyboardInterrupt or isinstance(e, KeyboardInterrupt):
