@@ -1,19 +1,39 @@
 import smtplib
 import json
 import time
+import sys
 from email.mime.text import MIMEText
 from email.header import Header
-from os import system
+from os import system, chdir
+from os.path import exists, dirname, abspath
 from getpass import getpass
 
 import requests
 
-sender_email = input("report sender email: ")
-sender_password = getpass("report sender password: ")
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-    "Cookie": getpass("bilibili cookie: ")
-}
+selfdir = dirname(sys.argv[0])
+if selfdir == "": selfdir = abspath(".")
+chdir(selfdir)
+
+if not exists("./config.json"):
+    sender_email = input("report sender email: ")
+    sender_password = getpass("report sender password: ")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Cookie": getpass("bilibili cookie: ")
+    }
+    with open("./config.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "sender_email": sender_email,
+            "sender_password": sender_password,
+            "headers": headers
+        }, indent=4, ensure_ascii=False))
+else:
+    with open("./config.json", "r", encoding="utf-8") as f:
+        config = json.load(f)
+        sender_email = config["sender_email"]
+        sender_password = config["sender_password"]
+        headers = config["headers"]
+
 system("cls")
 
 
