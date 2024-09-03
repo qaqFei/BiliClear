@@ -88,7 +88,7 @@ def getReplys(avid: str|int):
 
 def isPorn(text: str):
     for rule in rules:
-        if eval(rule):
+        if eval(rule): # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
             return True, rule
     return False, None
 
