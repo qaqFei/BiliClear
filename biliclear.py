@@ -64,12 +64,17 @@ if not exists("./config.json"):
         }, indent=4, ensure_ascii=False))
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
-        config = json.load(f)
-        sender_email = config["sender_email"]
-        sender_password = config["sender_password"]
-        headers = config["headers"]
-        smtp_server = config["smtp_server"]
-        smtp_port = config["smtp_port"]
+        try:
+            config = json.load(f)
+            sender_email = config["sender_email"]
+            sender_password = config["sender_password"]
+            headers = config["headers"]
+            smtp_server = config["smtp_server"]
+            smtp_port = config["smtp_port"]
+        except Exception:
+            print("load config.json failed, please delete it or fix it")
+            print("if you updated biliclear, please delete config.json and run again")
+            raise SystemExit
 
 with open("./rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
