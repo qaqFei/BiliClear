@@ -76,7 +76,6 @@ with open("./rules.txt", "r", encoding="utf-8") as f:
 
 system("cls")
 
-
 def getVideos():
     return [
         i["param"]
@@ -134,10 +133,10 @@ def report(data: dict, r: str):
 def processReply(reply: dict):
     isp, r = isPorn(reply["content"]["message"])
     if isp:
-        print("porn", repr(reply["content"]["message"]), "\nrule:", r, "\n")
+        print("违规评论:", repr(reply["content"]["message"]), "\nrule:", r, "\n")
         report(reply, r)
     else:
-        print(f" not porn, {time.time()}\r", end="")
+        print(f" 一切正常... (吗?), {time.time()}\r", end="")
 
 def setMethod():
     global method
