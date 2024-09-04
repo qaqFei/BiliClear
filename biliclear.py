@@ -11,6 +11,8 @@ from getpass import getpass
 
 import requests
 
+import biliauth
+
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
@@ -20,9 +22,15 @@ if not exists("./config.json"):
     sender_password = getpass("Report sender password: ")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        "Cookie": getpass("Bilibili cookie: ")
+        "Cookie": ""
     }
     
+    match (input("\n是否使用二维码登录B站, 默认为是(y/n)?").lower() + " ")[0]: # + " " to avoid empty input
+        case "n":
+            headers["Cookie"] = getpass("Bilibili cookie: ")
+        case _:
+            headers["Cookie"] = biliauth.bilibiliAuth()
+        
     smtps = {
         "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
         "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
