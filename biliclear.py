@@ -16,29 +16,35 @@ if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
 
 if not exists("./config.json"):
-    sender_email = input("report sender email: ")
-    sender_password = getpass("report sender password: ")
+    sender_email = input("Report sender email: ")
+    sender_password = getpass("Report sender password: ")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        "Cookie": getpass("bilibili cookie: ")
+        "Cookie": getpass("Bilibili cookie: ")
     }
     
     smtps = {
-        "@mali.aliyun.com": "server = smtp.aliyun.com, port = 465",
-        "@google.com": "server = smtp.gmail.com, port = 587",
-        "@sina.com": "server = smtp.sina.com.cn, port = 25",
-        "@top.com": "server = smtp.tom.com, port = 25",
-        "@163.com": "server = smtp.163.com, port = 465",
-        "@126.com": "server = smtp.126.com, port = 25",
-        "@yahoo.com.cn": "server = smtp.mail.yahoo.com.cn, port = 587",
-        "@foxmail.com": "server = smtp.foxmail.com, port = 25",
-        "@sohu.com": "server = smtp.sohu.com, port = 25"
+        "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
+        "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
+        "@sina.com": {"server": "smtp.sina.com.cn", "port": 465},
+        "@tom.com": {"server": "smtp.tom.com", "port": 465},
+        "@163.com": {"server": "smtp.163.com", "port": 465},
+        "@126.com": {"server": "smtp.126.com", "port": 465},
+        "@yahoo.com": {"server": "smtp.mail.yahoo.com", "port": 465},
+        "@foxmail.com": {"server": "smtp.qq.com", "port": 465},
+        "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
+        "@hotmail.com": {"server": "smtp.live.com", "port": 587},
+        "@outlook.com": {"server": "smtp.office365.com", "port": 587},
+        "@qq.com": {"server": "smtp.qq.com", "port": 465},
+        "@feishu.cn": {"server": "smtp.feishu.cn", "port": 465}
     }
-    print("\nsmtp servers:")
+    
+    print("\nSMTP servers:")
     for k, v in smtps.items():
-        print(f"    {k}: {v}")
-    smtp_server = input("\nsmtp server: ")
-    smtp_port = int(input("smtp port: "))
+        print(f"    {k}: server = {v['server']}, port = {v['port']}")
+    
+    smtp_server = input("\nSMTP server: ")
+    smtp_port = int(input("SMTP port: "))
     
     with open("./config.json", "w", encoding="utf-8") as f:
         f.write(json.dumps({

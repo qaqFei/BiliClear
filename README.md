@@ -4,11 +4,11 @@
 
 ## 使用
 - 程序第一次启动时需输入的参数:
-    - `report sender email: ` 发送举报邮件的邮箱
-    - `report sender password: ` 发送举报邮件邮箱的`SMTP`密钥, 不是密码!!!  (输入无回显)
-    - `bilibili cookie: ` 是`bilibli cookie`  需定期修改`config.json`更新 (输入无回显)
-    - `smtp server: ` 邮箱的`smtp`服务器地址, 会列出常用的
-    - `smtp port: ` 邮箱的`smtp`服务器端口, 会列出常用的
+    - `Report sender email: ` 发送举报邮件的邮箱
+    - `Report sender password: ` 发送举报邮件邮箱的`SMTP`密钥, 不是密码!!!  (输入无回显)
+    - `Bilibili cookie: ` 是`bilibli cookie`  需定期修改`config.json`更新 (输入无回显)
+    - `SMTP server: ` 邮箱的`smtp`服务器地址, 会列出常用的
+    - `SMTP port: ` 邮箱的`smtp`服务器端口, 会列出常用的
 
 - 程序运行出现异常 (与`config.json`相关的):
     - 修改`config.json`, 更新`bilibili cookie`, 修改邮箱`SMTP`密钥
@@ -20,7 +20,6 @@
 
 - `smtp`服务器选择
     - 选择所使用的邮件的`smtp`服务器, 会列出常用的
-    - 如果出现ssl错误, 可尝试更改端口到465或587
 
 ## 开发贡献
 - 过滤规则
@@ -29,6 +28,7 @@
     - 变量: `text`, 评论的语句, 类型: `str`
     - 在表达式中不允许使用`eval`和`exec`等函数
     - 可使用正则表达式, 调用`re`模块即可 (默认自动导入)
+<<<<<<< HEAD
 ## 青龙面板使用
 - 配置环境
     - 在`配置环境`-`config.sh`中增加拉取文件后缀txt和json
@@ -67,3 +67,5 @@
 
 
 
+=======
+>>>>>>> 610809802ea789e4c9a703e4295b2bdaaca69a77
