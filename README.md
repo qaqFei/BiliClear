@@ -29,3 +29,41 @@
     - 变量: `text`, 评论的语句, 类型: `str`
     - 在表达式中不允许使用`eval`和`exec`等函数
     - 可使用正则表达式, 调用`re`模块即可 (默认自动导入)
+## 青龙面板使用
+- 配置环境
+    - 在`配置环境`-`config.sh`中增加拉取文件后缀txt和json
+    ```
+    ## ql repo命令拉取脚本时需要拉取的文件后缀，直接写文件后缀名即可
+    RepoFileExtensions="js py json txt"
+    ```
+    - 增加SMTP服务相关信息(脚本从这个位置获取邮件信息，若不填写，后续运行脚本需手动填写邮箱信息)
+    ```
+    ## 14. SMTP
+    ## 邮箱服务名称，比如126、163、Gmail、QQ等，支持列表 https://github.com/nodemailer/nodemailer/blob/master/lib/well-known/services.json
+    export SMTP_SERVICE=""
+    ## smtp_email 填写 SMTP 收发件邮箱，通知将会由自己发给自己
+    export SMTP_EMAIL=""
+    ## smtp_password 填写 SMTP 登录密码，也可能为特殊口令，视具体邮件服务商说明而定
+    export SMTP_PASSWORD=""
+    ## smtp_name 填写 SMTP 收发件人姓名，可随意填写
+    export SMTP_NAME="青龙"
+    ```
+- 开始使用
+    - `订阅管理`-`创建订阅`。按以下格式填写
+    ```
+    名称：bili自动举报
+    类型：公开仓库
+    链接：https://github.com/qaqFei/BiliClear.git
+    定时类型：crontab
+    定时规则：2 2 28 * *
+    ```
+    其他都不用填写
+    完成创建后点击运行，拉取仓库
+    - 回到`定时任务`页面，页面中会有一些多余任务，只保留`bilibili举报违规`
+    - 先运行一次`bilibili举报违规`让他获取配置。之后可无人值守自动运行
+- 注意事项
+    - 脚本默认每天7点21运行，`无结束时间`，需要手动停止！
+
+
+
+
