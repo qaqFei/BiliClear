@@ -128,11 +128,12 @@ def report(data: dict, r: str):
 """
     msg = MIMEText(report_text, "plain", "utf-8")
     msg["From"] = Header("Report", "utf-8")
-    msg["To"] = Header("Bilibili", "utf-8")
+    msg["To"] = Header("Bilibili Or jubao@12377.cn", "utf-8")
     msg["Subject"] = Header("违规内容举报", "utf-8")
     smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
     smtp_con.login(sender_email, sender_password)
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
+    smtp_con.sendmail(sender_email, ["jubao@12377.cn"], msg.as_string())
     smtp_con.quit()
 
 def processReply(reply: dict):
