@@ -1,7 +1,7 @@
 import time
 import requests
-from os import system
 from urllib.parse import quote_plus
+
 
 def bilibiliAuth() -> str:
     headers = {
@@ -9,27 +9,26 @@ def bilibiliAuth() -> str:
     }
     result = requests.get(
         "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
-        headers = headers
+        headers=headers,
     ).json()
-    login_url = f"https://tool.oschina.net/action/qrcode/generate?data={quote_plus(result["data"]["url"])}&output=image/png&error=M&type=0&margin=4&size=4"
-    
+    login_url = f'httpshttps://tool.oschina.net/action/qrcode/generate?data={quote_plus(result["data"]["url"])}&output=image/png&error=M&type=0&margin=4&size=4'
+
     print(f"请使用下方网站登录B站: \n{login_url}")
     params = {
         "qrcode_key": result["data"]["qrcode_key"],
         "source": "main-fe-header",
     }
-    
-    print("\n登录成功请按回车键...", end="")
-    system("pause >> nul")
+
+    input("\n登录成功请按回车键...")
     result_cookie = requests.get(
-        'https://passport.bilibili.com/x/passport-login/web/qrcode/poll',
-        params = params,
-        headers = headers
+        "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
+        params=params,
+        headers=headers,
     )
-    if result_cookie.json()['data']['code'] == 0:
+    if result_cookie.json()["data"]["code"] == 0:
         cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
         print("\n获取cookie成功")
-        return "; ".join([f'{key}={value}' for key, value in cookie_dict.items()])
+        return "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
     print("\n获取cookie失败:", result_cookie.json()["data"]["message"], "\n")
     time.sleep(0.5)
     return bilibiliAuth()
