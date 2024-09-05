@@ -6,7 +6,7 @@
 1. **使用前：**
 
    ```bash
-   git clone https://github.com/qaqFei/BiliClear.git ./
+   git clone https://github.com/qaqFei/BiliClear.git
    cd BiliClear
    pip3 install -r requirements.txt
    ```
