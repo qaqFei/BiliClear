@@ -96,6 +96,7 @@ else:
         except Exception:
             print("load config.json failed, please delete it or fix it")
             print("if you updated biliclear, please delete config.json and run again")
+            system("pause")
             raise SystemExit
 
     try:
@@ -109,6 +110,8 @@ if not checkSmtpPassword():
 with open("./rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
+print("\nloaded, biliclear will run after 2.0s.")
+time.sleep(2.0)
 system("cls")
 
 def getVideos():
