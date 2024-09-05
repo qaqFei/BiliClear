@@ -124,11 +124,11 @@ else:
             smtp_port = config["smtp_port"]
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-        except Exception:
+        except Exception as e:
             print("load config.json failed, please delete it or fix it")
             print("if you updated biliclear, please delete config.json and run again")
             input("按任意键退出...")
-            raise SystemExit
+            raise SystemExit from e
 
     try:
         saveConfig()
@@ -178,10 +178,7 @@ def getReplys(avid: str | int):
 
 
 def isPorn(text: str):
-    for rule in rules:
-        if eval(rule):  # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
-            return True, rule
-    return False, None
+    return next(((True, rule) for rule in rules if eval(rule)), (False, None))
 
 
 def req_bili_report_api(data: dict):
