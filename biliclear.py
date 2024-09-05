@@ -13,6 +13,8 @@ import requests
 
 import biliauth
 
+sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
+
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
@@ -110,7 +112,7 @@ if not checkSmtpPassword():
 with open("./rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
-print("\nloaded, biliclear will run after 2.0s.")
+print("loaded, biliclear will run after 2.0s.")
 time.sleep(2.0)
 system("cls")
 
@@ -249,7 +251,5 @@ while True:
                 time.sleep(1.25)
             case _:
                 print("链接格式错误")
-    except (Exception, KeyboardInterrupt) as e:
+    except Exception as e:
         print("err", e)
-        if isinstance(e, KeyboardInterrupt):
-            break
