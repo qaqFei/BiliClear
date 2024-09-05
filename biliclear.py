@@ -81,7 +81,7 @@ if not exists("./config.json"):
     
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
-    bili_report_api = "y" in input("是否而外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
+    bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
     
     saveConfig()
 else:
@@ -189,12 +189,11 @@ def report(data: dict, r: str):
     
     msg = MIMEText(report_text, "plain", "utf-8")
     msg["From"] = Header("Report", "utf-8")
-    msg["To"] = Header("Bilibili Or jubao@12377.cn", "utf-8")
+    msg["To"] = Header("Bilibili", "utf-8")
     msg["Subject"] = Header("违规内容举报", "utf-8")
     smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
     smtp_con.login(sender_email, sender_password)
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
-    smtp_con.sendmail(sender_email, ["jubao@12377.cn"], msg.as_string())
     smtp_con.quit()
     
     if bili_report_api:
