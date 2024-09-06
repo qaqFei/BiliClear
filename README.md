@@ -31,12 +31,12 @@
 2. **启动程序：**  
    - **GUI仅限Windows可用**
 
-   程序第一次启动时，需输入以下参数：
-   - `Report sender email`: 📧 发送举报邮件的邮箱
-   - `Report sender password`: 🔑 邮箱的 `SMTP` 密钥，不是密码！（输入无回显）
-   - `Bilibili cookie`: 🍪 需定期更新 `config.json` 内的 `Bilibili cookie`（输入无回显）
-   - `SMTP server`: ✉️ 邮箱的 `SMTP` 服务器地址，会列出常用的选项
-   - `SMTP port`: 🚪 `SMTP` 服务器端口
+   - 程序第一次启动时，需输入以下参数：
+      - `Report sender email`: 📧 发送举报邮件的邮箱
+      - `Report sender password`: 🔑 邮箱的 `SMTP` 密钥，不是密码！（输入无回显）
+      - `Bilibili cookie`: 🍪 需定期更新 `config.json` 内的 `Bilibili cookie`（输入无回显）
+      - `SMTP server`: ✉️ 邮箱的 `SMTP` 服务器地址，会列出常用的选项
+      - `SMTP port`: 🚪 `SMTP` 服务器端口
 
 3. **处理异常：**  
    若与 `config.json` 相关的异常出现，处理方式如下：
