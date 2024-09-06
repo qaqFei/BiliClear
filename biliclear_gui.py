@@ -4,9 +4,8 @@ import json
 from threading import Thread
 from ctypes import windll
 
-import webcvapis
-
 import biliclear
+import web_canvas as webcvapis
 
 def worker():
     while True:
