@@ -14,7 +14,7 @@ import requests
 import biliauth
 import syscmds
 
-sys.excepthook = lambda *args: [syscmds.clearScreen(), print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
+sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
@@ -65,6 +65,13 @@ def checkCookie():
     ).json()
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
+lastCallBeforeCallBiliApiTime = -float("inf")
+def beforeCallBiliApi(minTime: float = 0.75):
+    global lastCallBeforeCallBiliApiTime
+    if time.time() - lastCallBeforeCallBiliApiTime < minTime:
+        time.sleep(max(0.0, minTime - (time.time() - lastCallBeforeCallBiliApiTime)))
+    lastCallBeforeCallBiliApiTime = time.time()
+
 if not exists("./config.json"):
     sender_email = input("Report sender email: ")
     sender_password = getpass("Report sender password: ")
@@ -98,7 +105,7 @@ if not exists("./config.json"):
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
-    reply_limit = 500
+    reply_limit = 350
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -110,7 +117,7 @@ else:
             smtp_port = config["smtp_port"]
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-            reply_limit = config.get("reply_limit", 500)
+            reply_limit = config.get("reply_limit", 350)
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -139,6 +146,7 @@ time.sleep(2.0)
 syscmds.clearScreen()
 
 def getVideos():
+    beforeCallBiliApi()
     return [
         i["param"]
         for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
@@ -150,6 +158,7 @@ def getReplys(avid: str|int):
     page = 1
     replies = []
     while page * 20 <= maxNum:
+        beforeCallBiliApi(0.25)
         result = requests.get(
             f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
             headers=headers
@@ -170,6 +179,7 @@ def isPorn(text: str):
     return False, None
 
 def req_bili_report_api(data: dict):
+    beforeCallBiliApi()
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
         headers = headers,
@@ -208,7 +218,7 @@ def report(data: dict, r: str):
 (此举报信息自动生成, 可能会存在误报)
 评论内容匹配到的规则: {r}
 """
-    print("违规评论:", repr(reply["content"]["message"]))
+    print("\n违规评论:", repr(reply["content"]["message"]))
     print("规则:", r)
     
     msg = MIMEText(report_text, "plain", "utf-8")
@@ -229,8 +239,6 @@ def processReply(reply: dict):
     isp, r = isPorn(reply["content"]["message"])
     if isp:
         report(reply, r)
-    else:
-        print(f" 一切正常... (吗?), 现在时间: {time.time()}\r", end="")
 
 def setMethod():
     global method
@@ -251,6 +259,7 @@ def setMethod():
         syscmds.clearScreen()
         
 def bvid2avid(bvid: str):
+    beforeCallBiliApi()
     result = requests.get(
         f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
         headers=headers
@@ -263,16 +272,22 @@ while True:
         match method:
             case "1":
                 for avid in getVideos():
+                    print(f"检查视频: av{avid}, 现在时间: {time.time()}")
                     for reply in getReplys(avid):
                         processReply(reply)
-                    time.sleep(1.25)
             case "2":
                 syscmds.clearScreen()
                 link = input("输入视频bvid: ")
                 for reply in getReplys(bvid2avid(link)):
                     processReply(reply)
-                time.sleep(1.25)
             case _:
                 print("链接格式错误")
     except Exception as e:
-        print("错误", e)
+        print("错误", repr(e))
+        if isinstance(e, json.JSONDecodeError):
+            stopSt = time.time()
+            stopMinute = 10
+            print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
+            while time.time() - stopSt < 60 * stopMinute:
+                print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {(60 * stopMinute - (time.time() - stopSt)):.2f}s")
+                time.sleep(1.5)
