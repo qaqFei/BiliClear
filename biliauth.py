@@ -3,8 +3,6 @@ import requests
 from os import system
 from urllib.parse import quote_plus
 
-import syscmds
-
 def bilibiliAuth() -> str:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
@@ -22,13 +20,13 @@ def bilibiliAuth() -> str:
     }
     
     print("\n登录成功请按回车键...", end="")
-    syscmds.pause()
+    system("pause >> nul")
     result_cookie = requests.get(
         'https://passport.bilibili.com/x/passport-login/web/qrcode/poll',
         params = params,
         headers = headers
     )
-    if result_cookie.json()["data"]["code"] == 0:
+    if result_cookie.json()['data']['code'] == 0:
         cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
         print("\n获取cookie成功")
         return "; ".join([f'{key}={value}' for key, value in cookie_dict.items()])

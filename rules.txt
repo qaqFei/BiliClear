@@ -20,3 +20,5 @@
 "小蝴蝶" in text and "细节" in text and "！" in text
 "舞蹈了" in text and "练习" in text and "开心了" in text
 "你可能不知道" in text and "在" in text and "叫" in text
+"就你" in text
+"傻逼" in text
