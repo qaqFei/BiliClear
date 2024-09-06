@@ -1,6 +1,5 @@
 import time
 import requests
-from os import system
 from urllib.parse import quote_plus
 
 import syscmds
