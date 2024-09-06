@@ -87,8 +87,7 @@ if not exists("./config.json"):
         "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
         "@hotmail.com": {"server": "smtp.live.com", "port": 587},
         "@outlook.com": {"server": "smtp.office365.com", "port": 587},
-        "@qq.com": {"server": "smtp.qq.com", "port": 465},
-        "@feishu.cn": {"server": "smtp.feishu.cn", "port": 465}
+        "@qq.com": {"server": "smtp.qq.com", "port": 465}
     }
     
     print("\nSMTP 服务器:")
