@@ -5,7 +5,7 @@ import sys
 import re # used for rules matching
 from email.mime.text import MIMEText
 from email.header import Header
-from os import system, chdir
+from os import chdir
 from os.path import exists, dirname, abspath
 from getpass import getpass
 
@@ -14,7 +14,7 @@ import requests
 import biliauth
 import syscmds
 
-sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
+sys.excepthook = lambda *args: [syscmds.clearScreen(), print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
@@ -33,7 +33,11 @@ def saveConfig():
         }, indent=4, ensure_ascii=False))
 
 def getCsrf(cookie: str):
-    return re.findall(r"bili_jct=(.*?);", cookie)[0]
+    try:
+        return re.findall(r"bili_jct=(.*?);", cookie)[0]
+    except IndexError:
+        print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
+        raise SystemExit
 
 def checkSmtpPassword():
     try:
@@ -44,19 +48,29 @@ def checkSmtpPassword():
     except smtplib.SMTPAuthenticationError:
         return False
 
+def getCookieFromUser():
+    if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
+        return getpass("Bilibili cookie: ")
+    else:
+        return biliauth.bilibiliAuth()
+
+def checkCookie():
+    result = requests.get(
+        "https://passport.bilibili.com/x/passport-login/web/cookie/info",
+        headers = headers,
+        data = {
+            "csrf": csrf
+        }
+    ).json()
+    return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
+
 if not exists("./config.json"):
     sender_email = input("Report sender email: ")
     sender_password = getpass("Report sender password: ")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        "Cookie": ""
+        "Cookie": getCookieFromUser()
     }
-    
-    match (input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower() + " ")[0]: # + " " to avoid empty input
-        case "n":
-            headers["Cookie"] = getpass("Bilibili cookie: ")
-        case _:
-            headers["Cookie"] = biliauth.bilibiliAuth()
     
     csrf = getCsrf(headers["Cookie"])
         
@@ -76,15 +90,13 @@ if not exists("./config.json"):
         "@feishu.cn": {"server": "smtp.feishu.cn", "port": 465}
     }
     
-    print("\nSMTP servers:")
+    print("\nSMTP 服务器:")
     for k, v in smtps.items():
         print(f"    {k}: server = {v['server']}, port = {v['port']}")
     
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
-    
-    saveConfig()
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -96,25 +108,30 @@ else:
             smtp_port = config["smtp_port"]
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-        except Exception:
-            print("load config.json failed, please delete it or fix it")
-            print("if you updated biliclear, please delete config.json and run again")
-            print("press enter to exit...")
+        except Exception as e:
+            print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
+            print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
+            print("请按回车键退出...")
             syscmds.pause()
             raise SystemExit
 
-    try:
-        saveConfig()
-    except Exception:
-        print("warning: save config.json failed")
+if not checkCookie():
+    print("bilibili cookie已过期或失效, 请重新登录")
+    headers["Cookie"] = getCookieFromUser()
+    csrf = getCsrf(headers["Cookie"])
+    
+try:
+    saveConfig()
+except Exception:
+    print("警告: 保存config.json失败")
 
 if not checkSmtpPassword():
-    print("warning: SMTP password is wrong, please check it")
+    print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
 
 with open("./rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
-print("loaded, biliclear will run after 2.0s.")
+print("加载完成, BiliClear将在2.0s后开始运行")
 time.sleep(2.0)
 syscmds.clearScreen()
 
@@ -187,7 +204,7 @@ def report(data: dict, r: str):
 评论内容匹配到的规则: {r}
 """
     print("违规评论:", repr(reply["content"]["message"]))
-    print("rule:", r)
+    print("规则:", r)
     
     msg = MIMEText(report_text, "plain", "utf-8")
     msg["From"] = Header("Report", "utf-8")
@@ -208,7 +225,7 @@ def processReply(reply: dict):
     if isp:
         report(reply, r)
     else:
-        print(f" 一切正常... (吗?), {time.time()}\r", end="")
+        print(f" 一切正常... (吗?), 现在时间: {time.time()}\r", end="")
 
 def setMethod():
     global method
@@ -222,7 +239,7 @@ def setMethod():
         if method is not None:
             print("输入错误")
         
-        print("tip: 请定期检查bilibili cookie是否过期\n")
+        print("tip: 请定期检查bilibili cookie是否过期 (BiliClear启动时会自动检查)\n")
         for k, v in method_choices.items():
             print(f"{k}. {v}")
         method = input("选择: ")
@@ -253,4 +270,4 @@ while True:
             case _:
                 print("链接格式错误")
     except Exception as e:
-        print("err", e)
+        print("错误", e)
