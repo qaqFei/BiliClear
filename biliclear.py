@@ -298,7 +298,7 @@ def checkNewVideos():
     time.sleep(1.25)
 
 def checkVideo(bvid: str):
-    global videoCount
+    global videoCount, checkedVideos
     
     avid = bvid2avid(bvid)
     for reply in getReplys(avid):

@@ -11,6 +11,8 @@ import biliclear
 def worker():
     while True:
         try:
+            while designateVideos:
+                biliclear.checkVideo(designateVideos.pop())
             biliclear.checkNewVideos()
         except Exception as e:
             print("错误", repr(e))
@@ -202,6 +204,13 @@ def getListItemAnimationDy(lst: list, index: int, atime: float):
             dy += 1.0 - itemp
     return dy
 
+def addDesignateVideo():
+    bvid = root.run_js_code("prompt('请输入BV号: ');")
+    designateVideos.append(bvid)
+    root.run_js_code(f"alert('已添加BV号: {bvid}, 请耐心等待本轮推荐视频检查完毕');")
+
+designateVideos = []
+
 root = webcvapis.WebCanvas(
     width = 1, height = 1,
     x = 0, y = 0,
@@ -229,6 +238,9 @@ while not root.run_js_code("font_loaded;"):
     time.sleep(0.1)
 root.shutdown_fileserver()
 
+root.jsapi.set_attr("addDesignateVideo", addDesignateVideo)
+root.run_js_code("_addDesignateVideo = (e) => {if (e.ctrlKey && !e.repeat && e.key.toLowerCase() == 'i') pywebview.api.call_attr('addDesignateVideo');};")
+root.run_js_code("window.addEventListener('keydown', _addDesignateVideo);")
 Thread(target=worker, daemon=True).start()
 Thread(target=render, daemon=True).start()
 root.loop_to_close()
