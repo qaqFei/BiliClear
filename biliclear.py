@@ -218,7 +218,7 @@ def report(data: dict, r: str):
 (此举报信息自动生成, 可能会存在误报)
 评论内容匹配到的规则: {r}
 """
-    print("\n违规评论:", repr(reply["content"]["message"]))
+    print("\n违规评论:", repr(data["content"]["message"]))
     print("规则:", r)
     
     msg = MIMEText(report_text, "plain", "utf-8")
@@ -236,11 +236,15 @@ def report(data: dict, r: str):
     print() # next line
 
 def processReply(reply: dict):
-    global pornReplyCount
+    global replyCount, pornReplyCount, checkedReplies
+    
+    replyCount += 1
     isp, r = isPorn(reply["content"]["message"])
     if isp:
         pornReplyCount += 1
         report(reply, r)
+    checkedReplies.append((reply["rpid"], reply["content"]["message"], time.time()))
+    checkedReplies = checkedReplies[:1500]
 
 def setMethod():
     global method
@@ -271,38 +275,64 @@ def bvid2avid(bvid: str):
 videoCount = 0
 replyCount = 0
 pornReplyCount = 0
+waitRiskControl_TimeRemaining = float("nan")
+waitingRiskControl = False
+checkedVideos = []
+checkedReplies = []
 
-setMethod()
-while True:
-    try:
-        match method:
-            case "1":
-                print("检查新一轮推荐视频...")
-                print(f"已检查视频: {videoCount}")
-                print(f"已检查评论: {replyCount}")
-                print(f"已举报评论: {pornReplyCount} 违规率: {((pornReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.2f}%")
-                print() # next line
-                for avid in getVideos():
-                    print(f"检查视频: av{avid}, 现在时间: {time.time()}")
-                    for reply in getReplys(avid):
-                        processReply(reply)
-                        replyCount += 1
-                    videoCount += 1
-                time.sleep(1.25)
-            case "2":
-                syscmds.clearScreen()
-                link = input("输入视频bvid: ")
-                for reply in getReplys(bvid2avid(link)):
-                    processReply(reply)
-                time.sleep(1.25)
-            case _:
-                print("链接格式错误")
-    except Exception as e:
-        print("错误", repr(e))
-        if isinstance(e, json.JSONDecodeError):
-            stopSt = time.time()
-            stopMinute = 10
-            print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
-            while time.time() - stopSt < 60 * stopMinute:
-                print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {(60 * stopMinute - (time.time() - stopSt)):.2f}s")
-                time.sleep(1.5)
+def checkNewVideos():
+    global videoCount
+    global replyCount
+    global pornReplyCount
+    
+    print("开始检查新一轮推荐视频...")
+    print(f"已检查视频: {videoCount}")
+    print(f"已检查评论: {replyCount}")
+    print(f"已举报评论: {pornReplyCount} 违规率: {((pornReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.2f}%")
+    print() # next line
+    for avid in getVideos():
+        print(f"开始检查视频: av{avid}, 现在时间: {time.time()}")
+        for reply in getReplys(avid):
+            processReply(reply)
+        videoCount += 1
+        checkedVideos.append((avid, time.time()))
+    time.sleep(1.25)
+
+def checkVideo(bvid: str):
+    global videoCount
+    
+    avid = bvid2avid(bvid)
+    for reply in getReplys(avid):
+        processReply(reply)
+    videoCount += 1
+    checkedVideos.append((avid, time.time()))
+    time.sleep(1.25)
+
+def waitRiskControl():
+    global waitRiskControl_TimeRemaining, waitingRiskControl
+    
+    waitingRiskControl = True
+    stopSt = time.time()
+    stopMinute = 10
+    print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
+    while time.time() - stopSt < 60 * stopMinute:
+        waitRiskControl_TimeRemaining = 60 * stopMinute - (time.time() - stopSt)
+        print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
+        time.sleep(1.5)
+    waitingRiskControl = False
+
+if __name__ == "__main__":
+    setMethod()
+    while True:
+        try:
+            match method:
+                case "1":
+                    checkNewVideos()
+                case "2":
+                    checkVideo(input("\n输入视频bvid: "))
+                case _:
+                    print("链接格式错误")
+        except Exception as e:
+            print("错误", repr(e))
+            if isinstance(e, json.JSONDecodeError):
+                waitRiskControl()
