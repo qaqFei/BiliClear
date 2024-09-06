@@ -65,13 +65,6 @@ def checkCookie():
     ).json()
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
-lastCallBeforeCallBiliApiTime = -float("inf")
-def beforeCallBiliApi(minTime: float = 0.5):
-    global lastCallBeforeCallBiliApiTime
-    if time.time() - lastCallBeforeCallBiliApiTime < minTime:
-        time.sleep(max(0.0, minTime - (time.time() - lastCallBeforeCallBiliApiTime)))
-    lastCallBeforeCallBiliApiTime = time.time()
-
 if not exists("./config.json"):
     sender_email = input("Report sender email: ")
     sender_password = getpass("Report sender password: ")
@@ -105,7 +98,7 @@ if not exists("./config.json"):
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
-    reply_limit = 125
+    reply_limit = 100
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -117,7 +110,7 @@ else:
             smtp_port = config["smtp_port"]
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-            reply_limit = config.get("reply_limit", 125)
+            reply_limit = config.get("reply_limit", 100)
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -146,7 +139,6 @@ time.sleep(2.0)
 syscmds.clearScreen()
 
 def getVideos():
-    beforeCallBiliApi()
     return [
         i["param"]
         for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
@@ -158,7 +150,6 @@ def getReplys(avid: str|int):
     page = 1
     replies = []
     while page * 20 <= maxNum:
-        beforeCallBiliApi(0.4)
         result = requests.get(
             f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
             headers=headers
@@ -179,7 +170,6 @@ def isPorn(text: str):
     return False, None
 
 def req_bili_report_api(data: dict):
-    beforeCallBiliApi()
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
         headers = headers,
@@ -265,7 +255,6 @@ def setMethod():
         syscmds.clearScreen()
         
 def bvid2avid(bvid: str):
-    beforeCallBiliApi()
     result = requests.get(
         f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
         headers=headers
