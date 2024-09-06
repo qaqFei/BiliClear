@@ -269,6 +269,10 @@ waitingRiskControl = False
 checkedVideos = []
 checkedReplies = []
 
+def _checkVideo(avid: str|int):
+    for reply in getReplys(avid):
+        processReply(reply)
+    
 def checkNewVideos():
     global videoCount, replyCount, pornReplyCount, checkedVideos
     
@@ -279,8 +283,7 @@ def checkNewVideos():
     print() # next line
     for avid in getVideos():
         print(f"开始检查视频: av{avid}, 现在时间: {time.time()}")
-        for reply in getReplys(avid):
-            processReply(reply)
+        _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
         checkedVideos = checkedVideos[:1500]
@@ -290,8 +293,7 @@ def checkVideo(bvid: str):
     global videoCount, checkedVideos
     
     avid = bvid2avid(bvid)
-    for reply in getReplys(avid):
-        processReply(reply)
+    _checkVideo(avid)
     videoCount += 1
     checkedVideos.insert(0, (avid, time.time()))
     checkedVideos = checkedVideos[:1500]
