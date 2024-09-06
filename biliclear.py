@@ -51,9 +51,9 @@ def getCsrf(cookie: str) -> str:
     """从 Bilibili Cookie 中提取 CSRF token。"""
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
-    except IndexError:
+    except IndexError as e:
         print("Bilibili Cookie 格式错误, 重启 BiliClear 或删除 config.json")
-        raise SystemExit
+        raise SystemExit from e
 
 
 def checkSmtpPassword() -> bool:
@@ -157,7 +157,7 @@ else:
             print("如果你之前更新过 BiliClear, 请删除 config.json 并重新运行")
             print("请按回车键退出...")
             syscmds.pause()
-            raise SystemExit
+            raise SystemExit from e
 
 
 if not checkCookie():
