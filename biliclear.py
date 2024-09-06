@@ -12,6 +12,7 @@ from getpass import getpass
 import requests
 
 import biliauth
+import syscmds
 
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
@@ -98,7 +99,8 @@ else:
         except Exception:
             print("load config.json failed, please delete it or fix it")
             print("if you updated biliclear, please delete config.json and run again")
-            system("pause")
+            print("press enter to exit...")
+            syscmds.pause()
             raise SystemExit
 
     try:
@@ -114,7 +116,7 @@ with open("./rules.txt", "r", encoding="utf-8") as f:
 
 print("loaded, biliclear will run after 2.0s.")
 time.sleep(2.0)
-system("cls")
+syscmds.clearScreen()
 
 def getVideos():
     return [
@@ -224,7 +226,7 @@ def setMethod():
         for k, v in method_choices.items():
             print(f"{k}. {v}")
         method = input("选择: ")
-        system("cls")
+        syscmds.clearScreen()
         
 def bvid2avid(bvid: str):
     result = requests.get(
@@ -243,7 +245,7 @@ while True:
                         processReply(reply)
                     time.sleep(1.25)
             case "2":
-                system("cls")
+                syscmds.clearScreen()
                 link = input("输入视频bvid: ")
                 for reply in getReplys(bvid2avid(link)):
                     processReply(reply)
