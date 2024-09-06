@@ -29,7 +29,8 @@ def saveConfig():
             "smtp_server": smtp_server,
             "smtp_port": smtp_port,
             "bili_report_api": bili_report_api,
-            "csrf": csrf
+            "csrf": csrf,
+            "reply_limit": reply_limit
         }, indent=4, ensure_ascii=False))
 
 def getCsrf(cookie: str):
@@ -97,6 +98,7 @@ if not exists("./config.json"):
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
+    reply_limit = 500
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -108,6 +110,7 @@ else:
             smtp_port = config["smtp_port"]
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
+            reply_limit = config.get("reply_limit", 500)
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -143,7 +146,7 @@ def getVideos():
     ]
 
 def getReplys(avid: str|int):
-    maxNum = 100
+    maxNum = reply_limit
     page = 1
     replies = []
     while page * 20 <= maxNum:
@@ -152,6 +155,8 @@ def getReplys(avid: str|int):
             headers=headers
         ).json()
         try:
+            if not result["data"]["replies"]:
+                break
             replies += result["data"]["replies"]
         except Exception:
             break

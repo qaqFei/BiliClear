@@ -48,6 +48,16 @@
 5. **SMTP 服务器选择：**  
    请选择对应的邮箱服务的 `SMTP` 服务器，会列出常见的服务器选项。
 
+## `config.json` 配置文件 📝
+- `sender_email`: 📧 发送举报邮件的邮箱
+- `sender_password`: 🔑 邮箱的 `SMTP` 密钥
+- `headers`: 📨 B站api的请求头
+- `smtp_server`: ✉️ 邮箱的 `SMTP` 服务器地址
+- `smtp_port`: 🚪 `SMTP` 服务器端口
+- `bili_report_api`: 📡 是否调用B站api的举报接口
+- `csrf`: 🔐 B站api请求体中的 `csrf`
+- `reply_limit`: 🔒 单条视频获取评论的最大数量
+
 ## 开发贡献 🤝
 - **过滤规则：**  
   过滤规则在 `rules.txt` 文件中，每一行为一个 Python 表达式，只要有任何一个匹配即判定为违规。  
