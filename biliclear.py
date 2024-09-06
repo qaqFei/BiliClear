@@ -66,7 +66,7 @@ def checkCookie():
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
 lastCallBeforeCallBiliApiTime = -float("inf")
-def beforeCallBiliApi(minTime: float = 0.75):
+def beforeCallBiliApi(minTime: float = 0.8):
     global lastCallBeforeCallBiliApiTime
     if time.time() - lastCallBeforeCallBiliApiTime < minTime:
         time.sleep(max(0.0, minTime - (time.time() - lastCallBeforeCallBiliApiTime)))
@@ -105,7 +105,7 @@ if not exists("./config.json"):
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
-    reply_limit = 350
+    reply_limit = 250
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -117,7 +117,7 @@ else:
             smtp_port = config["smtp_port"]
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-            reply_limit = config.get("reply_limit", 350)
+            reply_limit = config.get("reply_limit", 250)
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -236,8 +236,10 @@ def report(data: dict, r: str):
     print() # next line
 
 def processReply(reply: dict):
+    global pornReplyCount
     isp, r = isPorn(reply["content"]["message"])
     if isp:
+        pornReplyCount += 1
         report(reply, r)
 
 def setMethod():
@@ -266,20 +268,33 @@ def bvid2avid(bvid: str):
     ).json()
     return result["data"]["aid"]
 
+videoCount = 0
+replyCount = 0
+pornReplyCount = 0
+
 setMethod()
 while True:
     try:
         match method:
             case "1":
+                print("检查新一轮推荐视频...")
+                print(f"已检查视频: {videoCount}")
+                print(f"已检查评论: {replyCount}")
+                print(f"已举报评论: {pornReplyCount} 违规率: {((pornReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.2f}%")
+                print() # next line
                 for avid in getVideos():
                     print(f"检查视频: av{avid}, 现在时间: {time.time()}")
                     for reply in getReplys(avid):
                         processReply(reply)
+                        replyCount += 1
+                    videoCount += 1
+                time.sleep(1.25)
             case "2":
                 syscmds.clearScreen()
                 link = input("输入视频bvid: ")
                 for reply in getReplys(bvid2avid(link)):
                     processReply(reply)
+                time.sleep(1.25)
             case _:
                 print("链接格式错误")
     except Exception as e:
