@@ -85,9 +85,6 @@ def checkCookie() -> bool:
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
 
-import sys
-
-# Add predefined SMTP options with a custom option
 predefined_smtp_options = {
     "1": {"server": "smtp.aliyun.com", "port": 465},
     "2": {"server": "smtp.gmail.com", "port": 465},
