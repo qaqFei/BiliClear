@@ -29,6 +29,8 @@
    ```
 
 2. **启动程序：**  
+   - **GUI仅限Windows可用**
+
    程序第一次启动时，需输入以下参数：
    - `Report sender email`: 📧 发送举报邮件的邮箱
    - `Report sender password`: 🔑 邮箱的 `SMTP` 密钥，不是密码！（输入无回显）
@@ -56,7 +58,7 @@
 - `smtp_port`: 🚪 `SMTP` 服务器端口
 - `bili_report_api`: 📡 是否调用B站api的举报接口
 - `csrf`: 🔐 B站api请求体中的 `csrf`
-- `reply_limit`: 🔒 单条视频获取评论的最大数量 尽量不要大于150 可能会被风控
+- `reply_limit`: 🔒 单条视频获取评论的最大数量 尽量不要大于125 可能会被风控
 
 ## 开发贡献 🤝
 - **过滤规则：**  

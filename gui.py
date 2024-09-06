@@ -1,0 +1,235 @@
+import time
+import sys
+import json
+from threading import Thread
+from ctypes import windll
+
+import webcvapis
+
+import biliclear
+
+def worker():
+    while True:
+        try:
+            biliclear.checkNewVideos()
+        except Exception as e:
+            print("错误", repr(e))
+            if isinstance(e, json.JSONDecodeError):
+                biliclear.waitRiskControl(False)
+
+def render():
+    while True:
+        root.clear_canvas(wait_execute=True)
+        
+        root.create_rectangle( # background
+            0, 0, w, h,
+            fillStyle = "rgb(30, 30, 30)",
+            wait_execute = True
+        )
+        
+        root.create_text(
+            w * 0.02,
+            h * 0.02,
+            text = "BiliClear 数据统计",
+            font = f"{(w + h) / 45}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = "#FFFFFF",
+            wait_execute = True
+        )
+        
+        root.create_text(
+            w * 0.02,
+            h * 0.1,
+            text = f"已检查视频: {biliclear.videoCount}",
+            font = f"{(w + h) / 125}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = "#FFFFFFEE",
+            wait_execute = True
+        )
+        
+        root.create_text(
+            w * 0.02,
+            h * 0.13,
+            text = f"已检查评论: {biliclear.replyCount}",
+            font = f"{(w + h) / 125}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = "#FFFFFFEE",
+            wait_execute = True
+        )
+        
+        root.create_text(
+            w * 0.02,
+            h * 0.16,
+            text = f"违规评论: {biliclear.pornReplyCount}",
+            font = f"{(w + h) / 125}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = f"#FFFFFFEE",
+            wait_execute = True
+        )
+        
+        replyPornRate = (biliclear.pornReplyCount / biliclear.replyCount * 100) if biliclear.replyCount != 0 else 0.0
+        root.create_text(
+            w * 0.02,
+            h * 0.19,
+            text = f"评论违规率: {replyPornRate:.5f}%",
+            font = f"{(w + h) / 125}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = f"#{"FFFFFF" if replyPornRate <= 0.1 else ("EEAAAA" if replyPornRate <= 0.5 else "EE4444")}EE",
+            wait_execute = True
+        )
+        
+        root.create_text(
+            w * 0.02,
+            h * 0.22,
+            text = f"B站API风控中: {biliclear.waitingRiskControl}{f" 剩余时间: {biliclear.waitRiskControl_TimeRemaining:.2f}s" if biliclear.waitingRiskControl else ""}",
+            font = f"{(w + h) / 125}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = f"#{"44CC44" if not biliclear.waitingRiskControl else "CC4444"}EE",
+            wait_execute = True
+        )
+        
+        root.create_text(
+            w * 0.02,
+            h * 0.25,
+            text = f"tip: Ctrl + I 可以手动输入bv号进行检查并举报违规内容",
+            font = f"{(w + h) / 100}px BiliClear_UIFont",
+            textAlign = "left",
+            textBaseline = "top",
+            fillStyle = f"#FFFFFF88",
+            wait_execute = True
+        )
+        
+        root.run_js_code(
+            f"""
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo({w * 0.02}, {h * 0.31});
+                ctx.lineTo({w * 0.32}, {h * 0.31});
+                ctx.lineTo({w * 0.32}, {h * 0.61});
+                ctx.lineTo({w * 0.02}, {h * 0.61});
+                ctx.lineTo({w * 0.02}, {h * 0.31});
+                ctx.clip();
+            """,
+            add_code_array = True
+        )
+        
+        item_y = h * 0.61 + getListItemAnimationDy(biliclear.checkedVideos, 1, 0.5) * (w + h) / 150 * 1.25
+        texts = []
+        for i in biliclear.checkedVideos:
+            texts.append(f"已检查视频: av{i[0]}")
+            
+        for text in texts:
+            root.create_text(
+                w * 0.02,
+                item_y,
+                text = text,
+                font = f"{(w + h) / 150}px BiliClear_UIFont",
+                textAlign = "left",
+                textBaseline = "bottom",
+                fillStyle = "#FFFFFFDD",
+                wait_execute = True
+            )
+            item_y -= (w + h) / 150 * 1.25
+            if item_y < 0.0:
+                break
+        
+        root.run_js_code(
+            "ctx.restore();",
+            add_code_array = True
+        )
+        
+        root.run_js_code(
+            f"""
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo({w * 0.02}, {h * 0.66});
+                ctx.lineTo({w * 1.0}, {h * 0.66});
+                ctx.lineTo({w * 1.0}, {h * 0.96});
+                ctx.lineTo({w * 0.02}, {h * 0.96});
+                ctx.lineTo({w * 0.02}, {h * 0.66});
+                ctx.clip();
+            """,
+            add_code_array = True
+        )
+        
+        item_y = h * 0.96 + getListItemAnimationDy(biliclear.checkedReplies, 2, 0.5) * (w + h) / 150 * 1.25
+        texts = []
+        for i in biliclear.checkedReplies:
+            reply_content = i[1]
+            if len(reply_content) > 10:
+                reply_content = reply_content[:10] + "..."
+            texts.append(f"已检查评论: rpid{i[0]}    内容: {repr(reply_content)[1:-1]}")
+            
+        for text in texts:
+            root.create_text(
+                w * 0.02,
+                item_y,
+                text = text,
+                font = f"{(w + h) / 150}px BiliClear_UIFont",
+                textAlign = "left",
+                textBaseline = "bottom",
+                fillStyle = "#FFFFFFDD",
+                wait_execute = True
+            )
+            item_y -= (w + h) / 150 * 1.25
+            if item_y < 0.0:
+                break
+        
+        root.run_js_code(
+            "ctx.restore();",
+            add_code_array = True
+        )
+        
+        try:
+            root.run_js_wait_code()
+        except Exception:
+            pass
+        
+        time.sleep(1 / 60)
+
+def getListItemAnimationDy(lst: list, index: int, atime: float):
+    dy = 0.0
+    for i in lst:
+        t = i[index]
+        itemp = (time.time() - t) / atime
+        if 0.0 <= itemp <= 1.0:
+            dy += 1.0 - itemp
+    return dy
+
+root = webcvapis.WebCanvas(
+    width = 1, height = 1,
+    x = 0, y = 0,
+    title = "BiliClear GUI",
+    debug = "--debug" in sys.argv,
+    resizable = False,
+)
+    
+webdpr = root.run_js_code("window.devicePixelRatio;")
+
+w, h = int(root.winfo_screenwidth() * 0.65), int(root.winfo_screenheight() * 0.65)
+root.resize(w, h)
+w_legacy, h_legacy = root.winfo_legacywindowwidth(), root.winfo_legacywindowheight()
+dw_legacy, dh_legacy = w - w_legacy, h - h_legacy
+dw_legacy *= webdpr; dh_legacy *= webdpr
+dw_legacy, dh_legacy = int(dw_legacy), int(dh_legacy)
+del w_legacy, h_legacy
+root.resize(w + dw_legacy, h + dh_legacy)
+root.move(int(root.winfo_screenwidth() / 2 - (w + dw_legacy) / webdpr / 2), int(root.winfo_screenheight() / 2 - (h + dh_legacy) / webdpr / 2))
+
+with open("./ChillRoundGothic_Normal.otf", "rb") as f:
+    root.reg_res(f.read(), "BiliClear_UIFont")
+root.run_js_code(f"loadFont('BiliClear_UIFont', \"{root.get_resource_path("BiliClear_UIFont")}\");")
+while not root.run_js_code("font_loaded;"):
+    time.sleep(0.1)
+root.shutdown_fileserver()
+
+Thread(target=worker, daemon=True).start()
+Thread(target=render, daemon=True).start()
+root.loop_to_close()
+windll.kernel32.ExitProcess(0)

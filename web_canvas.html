@@ -1,0 +1,63 @@
+<html>
+    <head></head>
+    <body></body>
+</html>
+
+<style type="text/css">
+    body{
+        overflow-x: hidden;
+        overflow-y: hidden;
+        padding: 0;
+        border: 0;
+        margin: 0;
+        background-color: black;
+    }
+
+    canvas {
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+    }
+</style>
+
+<script type="text/javascript">
+    root_ele = document.getRootNode();
+    html_ele = root_ele.children[0];
+    body_ele = html_ele.children[1];
+    canvas_ele = document.createElement("canvas");
+    dialog_canvas_ele = document.createElement("canvas");
+    body_ele.appendChild(canvas_ele);
+    ctx = canvas_ele.getContext("2d", {alpha: false});
+    JavaScript_WaitToExecute_CodeArray = new Array();
+    resize_task = false;
+    font_loaded = false;
+    
+    function resizeCanvas() {
+        canvas_ele.width = window.innerWidth * window.devicePixelRatio;
+        canvas_ele.height = window.innerHeight * window.devicePixelRatio;
+        ctx.reset();
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    function process_jswteca() {
+        for(var i=0;i<JavaScript_WaitToExecute_CodeArray.length;i++){
+            eval(JavaScript_WaitToExecute_CodeArray[i]);
+        }
+        JavaScript_WaitToExecute_CodeArray = new Array();
+    }
+
+    function loadFont(family, url) {
+        var font = new FontFace(family, `url(${url})`);
+        font.load().then((rfont) => {
+            document.fonts.add(rfont);
+            font_loaded = true;
+        })
+    }
+
+    resizeCanvas();
+
+    window.addEventListener("resize", resizeCanvas);
+</script>

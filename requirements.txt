@@ -1,1 +1,2 @@
 requests
+webcvapis==0.0.6
