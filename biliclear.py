@@ -150,6 +150,7 @@ def getReplys(avid: str|int):
     page = 1
     replies = []
     while page * 20 <= maxNum:
+        time.sleep(0.4)
         result = requests.get(
             f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
             headers=headers
