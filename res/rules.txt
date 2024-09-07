@@ -39,4 +39,4 @@
 "isgou.cn" in text
 "出汗" in text and "新动作" in text
 "QWAH.cznnew.cn" in text
-"V" in text and "扫" in text
+"V" in text and "扫" in text or "v" in text and "扫" in text
