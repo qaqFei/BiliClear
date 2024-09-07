@@ -230,7 +230,7 @@ del w_legacy, h_legacy
 root.resize(w + dw_legacy, h + dh_legacy)
 root.move(int(root.winfo_screenwidth() / 2 - (w + dw_legacy) / webdpr / 2), int(root.winfo_screenheight() / 2 - (h + dh_legacy) / webdpr / 2))
 
-with open("./ChillRoundGothic_Normal.otf", "rb") as f:
+with open("./res/ChillRoundGothic_Normal.otf", "rb") as f:
     root.reg_res(f.read(), "BiliClear_UIFont")
 root.run_js_code(f"loadFont('BiliClear_UIFont', \"{root.get_resource_path("BiliClear_UIFont")}\");")
 while not root.run_js_code("font_loaded;"):

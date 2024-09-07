@@ -179,7 +179,7 @@ class MainWindow(QWidget):
     def initUI(self):
         self.setWindowTitle('Bilibili 自动评论监控')
         self.setGeometry(300, 300, 1200, 600)
-        self.setWindowIcon(QIcon('icon.ico'))  # 设置窗口图标为根目录下的 icon.ico
+        self.setWindowIcon(QIcon('./res/icon.ico'))  # 设置窗口图标为根目录下的 res/icon.ico
 
         # 创建主布局
         main_layout = QHBoxLayout()

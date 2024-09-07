@@ -155,7 +155,7 @@ if not checkSmtpPassword():
 with open("./rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
-face_detector = cv2.CascadeClassifier("./haarcascade_frontalface_default.xml")
+face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
 
 print("加载完成, BiliClear将在0.3s后开始运行")
 time.sleep(0.3)
