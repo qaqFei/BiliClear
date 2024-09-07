@@ -37,7 +37,8 @@ def saveConfig():
             "enable_gpt": enable_gpt,
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
-            "enable_email": enable_email
+            "enable_email": enable_email,
+            "enable_check_lv2avatarat": enable_check_lv2avatarat
         }, indent=4, ensure_ascii=False))
 
 def getCsrf(cookie: str):
