@@ -32,3 +32,10 @@
 "好看" in text and "燃烧" in text and "哦" in text and ("！" in text or "!" in text)
 "开心一次" in text and "是" in text and "流转" in text and "不经意" in text
 "都是" in text and "]" in text and "刚才" in text and "好大" in text
+"友情提示" in text and "刷视频" in text
+"那一抹春色" in text and "美好" in text
+"玉米棒子" in text and "花蕊" in text
+"尖端玩具" in text and "汗水成河" in text
+"isgou.cn" in text
+"出汗" in text and "新动作" in text
+"QWAH.cznnew.cn" in text
