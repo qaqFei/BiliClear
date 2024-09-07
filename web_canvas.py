@@ -7,11 +7,8 @@ from random import randint
 import threading
 import typing
 import http.server
-import io
 import time
-import math
 
-from PIL import Image
 import webview
 
 selfdir = dirname(argv[0])
@@ -32,12 +29,7 @@ class WebCanvas_FileServerHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods","*")
         self.send_header("Access-Control-Allow-Headers","Authorization, Content-Type")
         self.end_headers()
-        if self.path[1:] in self._canvas._regims:
-            im:Image.Image = self._canvas._regims[self.path[1:]]
-            temp_btyeio = io.BytesIO()
-            im.save(temp_btyeio,"png")
-            self.wfile.write(temp_btyeio.getvalue())
-        elif self.path[1:] in self._canvas._regres:
+        if self.path[1:] in self._canvas._regres:
             data:bytes = self._canvas._regres[self.path[1:]]
             self.wfile.write(data)
         else:
@@ -104,9 +96,7 @@ class WebCanvas:
         }
         self._destroyed = False
         self.debug = debug
-        self._regims:dict[str, Image.Image] = {}
         self._regres:dict[str, bytes] = {}
-        self._is_loadimg:dict[str, bool] = {}
         self._JavaScript_WaitToExecute_CodeArray:list[str] = []
         threading.Thread(target=webview.start,kwargs={"debug":self.debug},daemon=True).start()
         self._init()
@@ -278,27 +268,6 @@ class WebCanvas:
     ):
         return code.replace("\\","\\\\").replace("'","\\'").replace("\"","\\\"").replace("`","\\`").replace("\n", "\\n")
     
-    def process_code_string_syntax_tocode(
-        self,code:str
-    ):
-        return f"'{self.process_code_string_syntax_tostring(code)}'"
-
-    def rotate(
-        self,
-        deg:typing.Union[int,float],
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        self.run_js_code(f"ctx.rotate({deg * math.pi / 180});",threading_,wait_execute)
-    
-    def translate(
-        self,
-        x:typing.Union[int,float],y:typing.Union[int,float],
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        self.run_js_code(f"ctx.translate({x},{y});",threading_,wait_execute)
-    
     def create_rectangle(
         self,
         x0:typing.Union[int,float],y0:typing.Union[int,float],
@@ -313,67 +282,6 @@ class WebCanvas:
         "
         self.run_js_code(code,threading_,wait_execute)
     
-    def create_line(
-        self,
-        x0:typing.Union[int,float],y0:typing.Union[int,float],
-        x1:typing.Union[int,float],y1:typing.Union[int,float],
-        lineWidth:int = 1,
-        fillStyle:typing.Union[str,None] = None,
-        strokeStyle:typing.Union[str,None] = None,
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        code = self._set_style_fill_stroke(fillStyle,strokeStyle) + f"\
-            ctx.lineWidth = {lineWidth};\
-            ctx.beginPath();\
-            ctx.moveTo({x0},{y0});\
-            ctx.lineTo({x1},{y1});\
-            ctx.closePath();\
-            ctx.stroke();\
-            ctx.lineWidth = 1;\
-        "
-        self.run_js_code(code,threading_,wait_execute)
-    
-    def create_arc(
-        self,
-        x:typing.Union[int,float],y:typing.Union[int,float],
-        r:typing.Union[int,float],
-        start:int,end:int,
-        lineWidth:int = 1,
-        fillStyle:typing.Union[str,None] = None,
-        strokeStyle:typing.Union[str,None] = None,
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        code = self._set_style_fill_stroke(fillStyle,strokeStyle) + f"\
-            ctx.lineWidth = {lineWidth};\
-            ctx.beginPath();\
-            ctx.arc({x},{y},{r},{start},{end});\
-            ctx.closePath();\
-            ctx.stroke();\
-            ctx.lineWidth = 1;\
-        "
-        self.run_js_code(code,threading_,wait_execute)
-    
-    def create_circle(
-        self,
-        x:typing.Union[int,float],y:typing.Union[int,float],
-        r:typing.Union[int,float],
-        lineWidth:int = 1,
-        fillStyle:typing.Union[str,None] = None,
-        strokeStyle:typing.Union[str,None] = None,
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        return self.create_arc(
-            x,y,r,
-            0,360,
-            lineWidth,
-            fillStyle,strokeStyle,
-            threading_,
-            wait_execute
-        )
-
     def create_text(
         self,
         x:typing.Union[int,float],y:typing.Union[int,float],
@@ -393,51 +301,6 @@ class WebCanvas:
         "
         self.run_js_code(code,threading_,wait_execute)
     
-    def create_polygon(
-        self,points:typing.Iterator[typing.Tuple[typing.Union[int,float],typing.Union[int,float]]],
-        fillStyle:typing.Union[str,None] = None,
-        strokeStyle:typing.Union[str,None] = None,
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        code = self._set_style_fill_stroke(fillStyle,strokeStyle) + f"\
-            ctx.beginPath();\
-        "
-        for index,point in enumerate(points):
-            if index == 0:
-                code += f"ctx.moveTo({point[0]},{point[1]});"
-            else:
-                code += f"ctx.lineTo({point[0]},{point[1]});"
-        code += f"\
-            ctx.closePath();\
-            ctx.stroke();\
-            ctx.fill();\
-        "
-        self.run_js_code(code,threading_,wait_execute)
-    
-    def create_image(
-        self,
-        imgname:str,
-        x:typing.Union[int,float],y:typing.Union[int,float],
-        width:typing.Union[int,float],height:typing.Union[int,float],
-        threading_:bool = False,
-        wait_execute:bool = False
-    ) -> None:
-        if imgname not in self._is_loadimg:
-            raise ValueError("Image not found.")
-        if not self._is_loadimg[imgname]:
-            self._load_img(imgname)
-        jsvarname = self.get_img_jsvarname(imgname)
-        code = f"\
-            if ({jsvarname}.complete){chr(123)}\
-                ctx.drawImage({jsvarname},{x},{y},{width},{height});\
-            {chr(125)}\
-            else{chr(123)}\
-                {jsvarname}_onloadfuncs.push([{x},{y},{width},{height}]);\
-            {chr(125)}\
-        "
-        self.run_js_code(code,threading_,wait_execute)
-
     def clear_rectangle(
         self,
         x0:typing.Union[int,float],y0:typing.Union[int,float],
@@ -454,35 +317,11 @@ class WebCanvas:
     ) -> None:
         self.run_js_code("ctx.clearRect(0,0,canvas_ele.width,canvas_ele.height);",threading_,wait_execute)
     
-    def get_img_jsvarname(
-        self,
-        imname:str
-    ):
-        return f"{imname}_img"
-    
-    def reg_img(
-        self,im:Image.Image,
-        name:str
-    ) -> None:
-        self._regims.update({name:im})
-        self._is_loadimg[name] = False
-    
     def reg_res(
         self,res_data:bytes,
         name:str
     ) -> None:
         self._regres.update({name:res_data})
-    
-    def load_allimg(
-        self
-    ) -> None:
-        for imgname in self._regims:
-            self._load_img(imgname)
-        while True:
-            complete_list:typing.List[bool] = self.run_js_code("["+",".join([f"{self.get_img_jsvarname(item)}.complete" for item in self._regims])+"]")
-            if list(set(complete_list)) == [True]:
-                break
-            time.sleep(0.2)
     
     def reg_event(
         self,name:str,
@@ -519,27 +358,6 @@ class WebCanvas:
     ) -> None:
         self._destroyed = True
     
-    def _load_img(
-        self,imgname:str
-    ) -> None:
-        jsvarname = self.get_img_jsvarname(imgname)
-        code = f"\
-        if (!window.{jsvarname}){chr(123)}\
-            {jsvarname} = document.createElement('img');\
-            {jsvarname}.crossOrigin = \"Anonymous\";\
-            {jsvarname}.src = 'http://127.0.0.1:{self._web_port + 1}/{imgname}';\
-            {jsvarname}.loading = \"eager\";\
-            {jsvarname}_onloadfuncs = new Array();\
-            {jsvarname}.onload = function(){chr(123)}\
-                for (code of {jsvarname}_onloadfuncs){chr(123)}\
-                    ctx.drawImage({jsvarname},code[0],code[1],code[2],code[3]);\
-                {chr(125)}\
-            {chr(125)}\
-        {chr(125)}\
-        "
-        self.run_js_code(code)
-        self._is_loadimg[imgname] = True
-
     def _init(
         self
     ) -> None:

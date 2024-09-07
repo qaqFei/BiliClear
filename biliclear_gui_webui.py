@@ -235,11 +235,20 @@ with open("./res/ChillRoundGothic_Normal.otf", "rb") as f:
 root.run_js_code(f"loadFont('BiliClear_UIFont', \"{root.get_resource_path("BiliClear_UIFont")}\");")
 while not root.run_js_code("font_loaded;"):
     time.sleep(0.1)
+
+root.reg_res(open("./res/2233.gif", "rb").read(), "img2233")
+img2233path = root.get_resource_path("img2233")
+root.run_js_code(f"load2233(('{img2233path}'));")
+while not root.run_js_code("loaded2233"):
+    print("loading 2233.gif...")
+    time.sleep(0.1)
+    
 root.shutdown_fileserver()
 
 root.jsapi.set_attr("addDesignateVideo", addDesignateVideo)
 root.run_js_code("_addDesignateVideo = (e) => {if (e.ctrlKey && !e.repeat && e.key.toLowerCase() == 'i') pywebview.api.call_attr('addDesignateVideo');};")
 root.run_js_code("window.addEventListener('keydown', _addDesignateVideo);")
+
 Thread(target=worker, daemon=True).start()
 Thread(target=render, daemon=True).start()
 root.loop_to_close()
