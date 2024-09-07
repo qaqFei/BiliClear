@@ -10,6 +10,8 @@ from os.path import exists, dirname, abspath
 from getpass import getpass
 
 import requests
+import cv2
+import numpy as np
 
 import biliauth
 import syscmds
@@ -32,10 +34,10 @@ def saveConfig():
             "bili_report_api": bili_report_api,
             "csrf": csrf,
             "reply_limit": reply_limit,
-            "use_gpt": use_gpt,
+            "enable_gpt": enable_gpt,
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
-            "use_email": use_email
+            "enable_email": enable_email
         }, indent=4, ensure_ascii=False))
 
 def getCsrf(cookie: str):
@@ -103,10 +105,11 @@ if not exists("./config.json"):
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
     reply_limit = 100
-    use_gpt = False
+    enable_gpt = False
     gpt.openai.api_key = ""
     gpt.gpt_model = "gpt-4o-mini"
-    use_email = True
+    enable_email = True
+    enable_check_lv2avatarat = False
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -119,10 +122,11 @@ else:
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
             reply_limit = config.get("reply_limit", 100)
-            use_gpt = config.get("use_gpt", False)
+            enable_gpt = config.get("enable_gpt", False)
             gpt.openai.api_key = config.get("gpt_apikey", "")
             gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
-            use_email = config.get("use_email", True)
+            enable_email = config.get("enable_email", True)
+            enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
             if reply_limit <= 20:
                 reply_limit = 100
         except Exception as e:
@@ -147,6 +151,8 @@ if not checkSmtpPassword():
 
 with open("./rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
+
+face_detector = cv2.CascadeClassifier("./haarcascade_frontalface_default.xml")
 
 print("加载完成, BiliClear将在2.0s后开始运行")
 time.sleep(2.0)
@@ -225,7 +231,7 @@ def report(data: dict, r: str):
     print("\n违规评论:", repr(data["content"]["message"]))
     print("规则:", r)
     
-    if use_email:
+    if enable_email:
         msg = MIMEText(report_text, "plain", "utf-8")
         msg["From"] = Header("Report", "utf-8")
         msg["To"] = Header("Bilibili", "utf-8")
@@ -245,10 +251,23 @@ def processReply(reply: dict):
     
     replyCount += 1
     reply_msg = reply["content"]["message"]
+    
     isp, r = isPorn(reply_msg)
-    if not isp and use_gpt:
+    
+    if not isp and enable_gpt:
         isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
         print(f"调用GPT进行检测, 结果: {isp}")
+    
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"]["current_level"] == 2 and "@" in reply_msg: # lv.2
+        avatar_image = requests.get(
+            reply["member"]["avatar"],
+            headers=headers
+        ).content
+        cv2_img = cv2.imdecode(np.frombuffer(avatar_image, np.uint8), cv2.IMREAD_COLOR)
+        if not isinstance(face_detector.detectMultiScale(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY), scaleFactor=1.2, minNeighbors=1), tuple): # not empty
+            isp, r = True, "lv.2, 检测到头像中包含人脸, ..., 可疑"
+        print(f"lv.2和人脸检测, 结果: {isp}")
+        
     if isp:
         pornReplyCount += 1
         report(reply, r)

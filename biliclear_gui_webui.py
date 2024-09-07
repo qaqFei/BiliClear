@@ -13,7 +13,7 @@ def worker():
             while designateVideos:
                 biliclear.checkVideo(designateVideos.pop())
             biliclear.checkNewVideos()
-        except Exception as e:
+        except StopAsyncIteration as e:
             print("错误", repr(e))
             if isinstance(e, json.JSONDecodeError):
                 biliclear.waitRiskControl(False)
