@@ -157,8 +157,9 @@ with open("./res/rules.txt", "r", encoding="utf-8") as f:
 
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
 
-print("加载完成, BiliClear将在0.3s后开始运行")
-time.sleep(0.3)
+loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
+print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
+time.sleep(loaded_sleep_time)
 syscmds.clearScreen()
 
 def getVideos():
