@@ -13,11 +13,12 @@ print("""
 ╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║     
  ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
                                                           
-正在加载依赖，请稍等。。。""")
+正在导入模块，请稍等。。。""")
+
+
 import sys
 import threading
 import queue
-import webbrowser
 import json
 import requests
 from os.path import exists
@@ -25,10 +26,13 @@ from PyQt6.QtCore import Qt, QTimer, QTime
 from PyQt6.QtGui import QIcon, QTextCursor
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
-                             QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox)
+                             QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox)
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 import biliclear  # 引入主程序中的功能
-
+print("正在加载函数，请稍等。。。")
 CONFIG_FILE = './config.json'
 
 
@@ -57,6 +61,7 @@ class SettingsDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle('配置设置')
+
         layout = QFormLayout()
 
         # GPT 设置
@@ -122,7 +127,6 @@ class SettingsDialog(QDialog):
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
-
     def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
         super().__init__()
         self.avids = avids
@@ -146,12 +150,13 @@ class CommentProcessorThread(threading.Thread):
             replies = biliclear.getReplys(avid)
             bvid = self.bvid if self.bvid else f"av{avid}"
             self.log_queue.put(f"开始处理视频: {bvid}")
-            biliclear.videoCount += 1  # 更新视频计数
             self.video_counter += 1  # 增加计数
+            biliclear.videoCount += 1
             self.parent.update_current_avid(avid)  # 更新当前 avid 显示
 
             for reply in replies:
                 isp, rule = biliclear.processReply(reply)  # 处理评论
+                # biliclear.replyCount += 1  # 更新评论计数
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
@@ -185,6 +190,11 @@ class MainWindow(QWidget):
         self.timeout_timer = QTimer()
         self.timeout_timer.timeout.connect(self.check_for_timeout)
         self.timeout_timer.start(1000)  # 每秒检查一次是否超时
+
+        # 定时器每5秒刷新一次饼图
+        self.pie_timer = QTimer()
+        self.pie_timer.timeout.connect(self.update_pie_chart)
+        self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
 
         self.current_bvid = None
         self.processor_thread = None
@@ -246,6 +256,19 @@ class MainWindow(QWidget):
         self.violation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         right_layout.addWidget(self.violation_table)
+
+        # 饼图类型选择
+        self.chart_type_combo = QComboBox(self)
+        self.chart_type_combo.addItem("正常/违规比例")
+        self.chart_type_combo.addItem("违规类型比例")
+        self.chart_type_combo.currentIndexChanged.connect(self.update_pie_chart)  # 切换时更新饼图
+        right_layout.addWidget(self.chart_type_combo)
+
+        # 饼图显示
+        self.figure = Figure()
+        self.ax = self.figure.add_subplot(111)
+        self.canvas = FigureCanvas(self.figure)
+        right_layout.addWidget(self.canvas)
 
         self.settings_btn = QPushButton('配置设置', self)
         self.settings_btn.clicked.connect(self.show_settings_dialog)
@@ -329,8 +352,7 @@ class MainWindow(QWidget):
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
-                                                       parent=self)
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid, parent=self)
         self.processor_thread.start()
 
     def update_current_avid(self, avid):
@@ -350,6 +372,10 @@ class MainWindow(QWidget):
 
         comment_item = QTableWidgetItem(comment_text)
         status_item = QTableWidgetItem("违规" if isp else "正常")
+
+        # 设置黑色文字
+        comment_item.setForeground(Qt.GlobalColor.black)
+        status_item.setForeground(Qt.GlobalColor.black)
 
         if isp:
             status_item.setBackground(Qt.GlobalColor.red)
@@ -375,6 +401,9 @@ class MainWindow(QWidget):
 
         # 更新统计数据展示
         self.update_stats_label()
+
+        # 自动刷新饼图
+        self.update_pie_chart()
 
     def log_message(self, message):
         """日志显示"""
@@ -405,12 +434,33 @@ class MainWindow(QWidget):
             self.log_message("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
 
+    def update_pie_chart(self):
+        """更新饼图"""
+        self.ax.clear()
+
+        chart_type = self.chart_type_combo.currentText()
+
+        if chart_type == "正常/违规比例":
+            data = [biliclear.replyCount - biliclear.pornReplyCount, biliclear.pornReplyCount]
+            labels = ['正常', '违规']
+        elif chart_type == "违规类型比例":
+            rule_counts = biliclear.get_violation_rule_counts()
+            data = list(rule_counts.values())
+            labels = list(rule_counts.keys())
+        else:
+            data = []
+            labels = []
+
+        self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
+        self.ax.axis('equal')  # 保证饼图是圆形的
+        self.canvas.draw()
+
     def show_settings_dialog(self):
         """显示设置对话框"""
         dialog = SettingsDialog(self.config, self)
         dialog.exec()
 
-
+print("正在启动GUI，请稍等。。。")
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()

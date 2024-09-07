@@ -303,7 +303,7 @@ def replyIsViolations(reply: dict):
     return isp, r
 
 def processReply(reply: dict):
-    "处理评论并举报"
+    """处理评论并举报"""
     global replyCount, pornReplyCount, checkedReplies
 
     replyCount += 1
