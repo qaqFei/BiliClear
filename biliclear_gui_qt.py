@@ -1,29 +1,11 @@
-print("""
-     ██████╗ ████████╗██╗   ██╗██╗    ██████╗ ██╗   ██╗   
-    ██╔═══██╗╚══██╔══╝██║   ██║██║    ██╔══██╗╚██╗ ██╔╝   
-    ██║   ██║   ██║   ██║   ██║██║    ██████╔╝ ╚████╔╝    
-    ██║▄▄ ██║   ██║   ██║   ██║██║    ██╔══██╗  ╚██╔╝     
-    ╚██████╔╝   ██║   ╚██████╔╝██║    ██████╔╝   ██║      
-     ╚══▀▀═╝    ╚═╝    ╚═════╝ ╚═╝    ╚═════╝    ╚═╝      
-                                                          
- ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗
-██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝
-██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗  
-██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝  
-╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║     
- ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
-                                                          
-正在导入模块，请稍等。。。""")
-
-
 import sys
 import threading
 import queue
 import json
 import requests
 from os.path import exists
-from PyQt6.QtCore import Qt, QTimer, QTime
-from PyQt6.QtGui import QIcon, QTextCursor
+from PyQt6.QtCore import Qt, QTimer, QTime, QUrl
+from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
                              QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox)
@@ -32,9 +14,13 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
 import biliclear  # 引入主程序中的功能
+import gpt  # 引入 GPT 相关功能
+
+# 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
+plt.rcParams['axes.unicode_minus'] = False    # 解决负号显示问题
 print("正在加载函数，请稍等。。。")
 CONFIG_FILE = './config.json'
-
 
 def load_config():
     """加载配置文件"""
@@ -44,12 +30,10 @@ def load_config():
     else:
         return None
 
-
 def save_config(config):
     """保存配置文件"""
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
-
 
 class SettingsDialog(QDialog):
     """配置对话框，允许用户设置 GPT 和其他配置"""
@@ -61,7 +45,6 @@ class SettingsDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle('配置设置')
-
         layout = QFormLayout()
 
         # GPT 设置
@@ -156,7 +139,6 @@ class CommentProcessorThread(threading.Thread):
 
             for reply in replies:
                 isp, rule = biliclear.processReply(reply)  # 处理评论
-                # biliclear.replyCount += 1  # 更新评论计数
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
@@ -193,7 +175,7 @@ class MainWindow(QWidget):
 
         # 定时器每5秒刷新一次饼图
         self.pie_timer = QTimer()
-        self.pie_timer.timeout.connect(self.update_pie_chart)
+        self.pie_timer.timeout.connect(self.update_token_usage)
         self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
 
         self.current_bvid = None
@@ -226,6 +208,7 @@ class MainWindow(QWidget):
         self.log_area.setReadOnly(True)
         left_layout.addWidget(self.log_area)
 
+        # 按钮
         self.start_btn = QPushButton('获取视频评论', self)
         self.start_btn.clicked.connect(self.start_processing)
         left_layout.addWidget(self.start_btn)
@@ -233,6 +216,10 @@ class MainWindow(QWidget):
         self.auto_btn = QPushButton('自动获取推荐视频评论', self)
         self.auto_btn.clicked.connect(self.auto_get_videos)
         left_layout.addWidget(self.auto_btn)
+
+        self.settings_btn = QPushButton('设置', self)
+        self.settings_btn.clicked.connect(self.show_settings_dialog)
+        left_layout.addWidget(self.settings_btn)
 
         left_widget.setLayout(left_layout)
 
@@ -257,22 +244,28 @@ class MainWindow(QWidget):
         self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         right_layout.addWidget(self.violation_table)
 
-        # 饼图类型选择
-        self.chart_type_combo = QComboBox(self)
-        self.chart_type_combo.addItem("正常/违规比例")
-        self.chart_type_combo.addItem("违规类型比例")
-        self.chart_type_combo.currentIndexChanged.connect(self.update_pie_chart)  # 切换时更新饼图
-        right_layout.addWidget(self.chart_type_combo)
+        # GPT Token 显示
+        self.token_label = QLabel("今日已花费 GPT Tokens: 0")
+        right_layout.addWidget(self.token_label)
+
+        # 链接按钮
+        github_btn = QPushButton('本项目Github主页')
+        github_btn.clicked.connect(self.open_github)
+        right_layout.addWidget(github_btn)
+
+        contributors_btn = QPushButton('本项目贡献者')
+        contributors_btn.clicked.connect(self.open_contributors)
+        right_layout.addWidget(contributors_btn)
+
+        api_btn = QPushButton('ChatGPT API管理页面')
+        api_btn.clicked.connect(self.open_api_keys)
+        right_layout.addWidget(api_btn)
 
         # 饼图显示
         self.figure = Figure()
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self.figure)
         right_layout.addWidget(self.canvas)
-
-        self.settings_btn = QPushButton('配置设置', self)
-        self.settings_btn.clicked.connect(self.show_settings_dialog)
-        right_layout.addWidget(self.settings_btn)
 
         right_widget.setLayout(right_layout)
 
@@ -434,26 +427,36 @@ class MainWindow(QWidget):
             self.log_message("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
 
+    def update_token_usage(self):
+        """更新GPT Token使用情况"""
+        try:
+            token_count = gpt.get_today_gpt_usage(self.config['gpt_apikey'])
+            self.token_label.setText(f"今日已花费 GPT Tokens: {token_count}")
+        except Exception as e:
+            self.log_message(f"更新GPT Token失败: {str(e)}")
+
     def update_pie_chart(self):
         """更新饼图"""
         self.ax.clear()
 
-        chart_type = self.chart_type_combo.currentText()
-
-        if chart_type == "正常/违规比例":
-            data = [biliclear.replyCount - biliclear.pornReplyCount, biliclear.pornReplyCount]
-            labels = ['正常', '违规']
-        elif chart_type == "违规类型比例":
-            rule_counts = biliclear.get_violation_rule_counts()
-            data = list(rule_counts.values())
-            labels = list(rule_counts.keys())
-        else:
-            data = []
-            labels = []
+        data = [biliclear.replyCount - biliclear.pornReplyCount, biliclear.pornReplyCount]
+        labels = ['正常', '违规']
 
         self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
         self.ax.axis('equal')  # 保证饼图是圆形的
         self.canvas.draw()
+
+    def open_github(self):
+        """打开Github页面"""
+        QDesktopServices.openUrl(QUrl("https://github.com/qaqFei/BiliClear"))
+
+    def open_contributors(self):
+        """打开贡献者页面"""
+        QDesktopServices.openUrl(QUrl("https://github.com/qaqFei/BiliClear/graphs/contributors"))
+
+    def open_api_keys(self):
+        """打开ChatGPT API页面"""
+        QDesktopServices.openUrl(QUrl("https://platform.openai.com/api-keys"))
 
     def show_settings_dialog(self):
         """显示设置对话框"""

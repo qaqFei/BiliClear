@@ -1,6 +1,35 @@
 import openai
+import requests
+import datetime
 
 gpt_model = "gpt-4o-mini"
+
+
+def get_today_gpt_usage(api_key):
+    """获取当天的 GPT tokens 使用量"""
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+    }
+
+    # 获取当前日期的开始时间 (UTC)
+    today = datetime.datetime.utcnow().date()
+    start_time = f"{today}T00:00:00Z"
+    end_time = f"{today}T23:59:59Z"
+
+    url = f"https://api.openai.com/v1/usage?start={start_time}&end={end_time}"
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("total_tokens", 0)
+        else:
+            print(f"Error: Unable to retrieve GPT usage, Status code: {response.status_code}")
+            return 0
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return 0
+
 
 def _gpt_replay(content, prompt) -> str:
     return openai.ChatCompletion.create(
@@ -11,8 +40,10 @@ def _gpt_replay(content, prompt) -> str:
         ]
     )["choices"][0]["message"]["content"]
 
+
 def _pcs_gpt_result(result: str):
     return "true" in result.lower()
+
 
 def gpt_porn(content):
     return _pcs_gpt_result(_gpt_replay(
