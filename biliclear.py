@@ -44,6 +44,33 @@ def saveConfig():
             "enable_check_lv2avatarat": enable_check_lv2avatarat
         }, indent=4, ensure_ascii=False))
 
+def loadConfig():
+    global config
+    global sender_email, sender_password
+    global headers, smtp_server, smtp_port
+    global bili_report_api, csrf
+    global reply_limit, enable_gpt
+    global enable_email, enable_check_lv2avatarat
+    
+    config = json.load(f)
+    sender_email = config["sender_email"]
+    sender_password = config["sender_password"]
+    headers = config["headers"]
+    smtp_server = config["smtp_server"]
+    smtp_port = config["smtp_port"]
+    bili_report_api = config.get("bili_report_api", False)
+    csrf = config.get("csrf", getCsrf(headers["Cookie"]))
+    reply_limit = config.get("reply_limit", 100)
+    enable_gpt = config.get("enable_gpt", False)
+    gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
+    gpt.openai.proxy = config.get("gpt_proxy", gpt.openai.proxy)
+    gpt.openai.api_key = config.get("gpt_apikey", "")
+    gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
+    enable_email = config.get("enable_email", True)
+    enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
+    if reply_limit <= 20:
+        reply_limit = 100
+
 def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
@@ -117,24 +144,7 @@ if not exists("./config.json"):
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
-            config = json.load(f)
-            sender_email = config["sender_email"]
-            sender_password = config["sender_password"]
-            headers = config["headers"]
-            smtp_server = config["smtp_server"]
-            smtp_port = config["smtp_port"]
-            bili_report_api = config.get("bili_report_api", False)
-            csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-            reply_limit = config.get("reply_limit", 100)
-            enable_gpt = config.get("enable_gpt", False)
-            gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
-            gpt.openai.proxy = config.get("gpt_proxy", gpt.openai.proxy)
-            gpt.openai.api_key = config.get("gpt_apikey", "")
-            gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
-            enable_email = config.get("enable_email", True)
-            enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
-            if reply_limit <= 20:
-                reply_limit = 100
+            loadConfig()
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -198,8 +208,6 @@ def isPorn(text: str):
     for rule in rules:
         if eval(rule):  # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
             return True, rule
-        if '@' in text:
-            return False, None
     return False, None
 
 def req_bili_report_api(data: dict, rule: str):
