@@ -3,3 +3,5 @@ requests
 pywebview
 PyQt6
 PyQt6-WebEngine
+numpy
+opencv-python
