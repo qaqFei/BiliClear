@@ -1,32 +1,15 @@
-print("""
- ██████╗ ████████╗ ██████╗ ██╗   ██╗██╗    ██████╗ ██╗   ██╗
-██╔═══██╗╚══██╔══╝██╔════╝ ██║   ██║██║    ██╔══██╗╚██╗ ██╔╝
-██║   ██║   ██║   ██║  ███╗██║   ██║██║    ██████╔╝ ╚████╔╝ 
-██║▄▄ ██║   ██║   ██║   ██║██║   ██║██║    ██╔══██╗  ╚██╔╝  
-╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝██║    ██████╔╝   ██║   
- ╚══▀▀═╝    ╚═╝    ╚═════╝  ╚═════╝ ╚═╝    ╚═════╝    ╚═╝   
-                                                            
- ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗  
-██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝  
-██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗    
-██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝    
-╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║       
- ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝       
-正在加载依赖。。。    
-""")
 import sys
 import threading
 import queue
 import webbrowser
 import json
+import requests
 from os.path import exists
-
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon, QTextCursor
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
-                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
-                             QDialog, QFormLayout, QCheckBox, QSpinBox, QLineEdit, QMessageBox)
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel,
+                             QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QAbstractItemView,
+                             QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox)
 
 import biliclear  # 引入主程序中的功能
 
@@ -72,7 +55,7 @@ class SettingsDialog(QDialog):
         self.gpt_apikey_input = QLineEdit(self.config.get('gpt_apikey', ''))
         layout.addRow('GPT API Key:', self.gpt_apikey_input)
 
-        self.gpt_model_input = QLineEdit(self.config.get('gpt_model', 'gpt-4'))
+        self.gpt_model_input = QLineEdit(self.config.get('gpt_model', 'gpt-4o-mini'))
         layout.addRow('GPT Model:', self.gpt_model_input)
 
         # Email 设置
@@ -124,12 +107,13 @@ class SettingsDialog(QDialog):
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
-    def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None):
+    def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False):
         super().__init__()
         self.avids = avids
         self.result_queue = result_queue
         self.log_queue = log_queue
         self.bvid = bvid
+        self.enable_gpt = enable_gpt
 
     def run(self):
         if self.avids is None:
@@ -142,7 +126,7 @@ class CommentProcessorThread(threading.Thread):
             biliclear.videoCount += 1  # 更新视频计数
 
             for reply in replies:
-                isp, rule = biliclear.processReply(reply)
+                isp, rule = biliclear.processReply(reply)  # 处理评论
                 biliclear.replyCount += 1  # 更新评论计数
                 if isp:
                     biliclear.pornReplyCount += 1  # 如果评论违规，更新违规计数
@@ -166,8 +150,10 @@ class MainWindow(QWidget):
 
         self.initUI()
 
-        # 定时器，每 100ms 检查一次队列的更新，更新 UI
-        self.timer = self.startTimer(100)
+        # 定时器，每隔 100ms 检查一次队列的更新，更新 UI
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.check_queue)
+        self.timer.start(100)
 
         self.current_bvid = None
         self.processor_thread = None
@@ -177,69 +163,39 @@ class MainWindow(QWidget):
         self.setGeometry(300, 300, 1200, 600)
         self.setWindowIcon(QIcon('icon.ico'))  # 设置窗口图标为根目录下的 icon.ico
 
-        main_layout = QHBoxLayout()
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        # 左侧布局
-        left_widget = QWidget()
-        left_layout = QVBoxLayout()
-
-        self.current_video_label = QLabel("当前未处理任何视频")
-        self.current_video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        left_layout.addWidget(self.current_video_label)
+        main_layout = QVBoxLayout()
 
         # 统计部分显示
         self.stats_label = QLabel(self.get_stats_text())  # 显示统计信息
-        left_layout.addWidget(self.stats_label)
+        main_layout.addWidget(self.stats_label)
 
         self.input_box = QLineEdit(self)
         self.input_box.setPlaceholderText("请输入 B 站视频的 bvid")
-        left_layout.addWidget(self.input_box)
+        main_layout.addWidget(self.input_box)
 
         self.comment_table = QTableWidget(0, 2, self)
         self.comment_table.setHorizontalHeaderLabels(["评论内容", "违规状态"])
         self.comment_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.comment_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        left_layout.addWidget(self.comment_table)
+        main_layout.addWidget(self.comment_table)
 
         self.log_area = QTextEdit(self)
         self.log_area.setReadOnly(True)
-        left_layout.addWidget(self.log_area)
+        main_layout.addWidget(self.log_area)
 
         self.start_btn = QPushButton('获取视频评论', self)
         self.start_btn.clicked.connect(self.start_processing)
-        left_layout.addWidget(self.start_btn)
+        main_layout.addWidget(self.start_btn)
 
         self.auto_btn = QPushButton('自动获取推荐视频评论', self)
         self.auto_btn.clicked.connect(self.auto_get_videos)
-        left_layout.addWidget(self.auto_btn)
+        main_layout.addWidget(self.auto_btn)
 
         self.settings_btn = QPushButton('配置设置', self)
-        self.settings_btn.clicked.connect(self.show_settings_dialog)  # 绑定设置按钮的点击事件
-        left_layout.addWidget(self.settings_btn)
+        self.settings_btn.clicked.connect(self.show_settings_dialog)
+        main_layout.addWidget(self.settings_btn)
 
-        left_widget.setLayout(left_layout)
-
-        # 右侧布局 - 使用 QWebEngineView 显示网页
-        right_widget = QWidget()
-        right_layout = QVBoxLayout()
-
-        self.video_preview = QWebEngineView(self)
-        right_layout.addWidget(self.video_preview)
-
-        self.browser_button = QPushButton("在浏览器中访问")
-        self.browser_button.clicked.connect(self.open_in_browser)
-        right_layout.addWidget(self.browser_button)
-
-        right_widget.setLayout(right_layout)
-
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
-        splitter.setSizes([500, 300])
-
-        main_layout.addWidget(splitter)
         self.setLayout(main_layout)
-
         self.show()
 
     def get_stats_text(self):
@@ -272,28 +228,33 @@ class MainWindow(QWidget):
             return
 
         try:
-            avid = biliclear.bvid2avid(bvid)
+            avid = self.get_avid_from_bvid(bvid)
 
             if not avid:
                 self.log_message("获取 avid 失败，请检查 bvid 是否正确")
                 return
 
             self.current_bvid = bvid
-            self.update_video_preview(bvid)
-            self.current_video_label.setText(f"当前视频: {bvid}")  # 更新当前视频显示
             self.start_comment_processing([avid])
 
         except Exception as e:
             self.log_message(f"发生错误: {str(e)}")
 
-    def update_video_preview(self, bvid):
-        """通过 bvid 加载 Bilibili 视频页面"""
+    def get_avid_from_bvid(self, bvid):
+        """通过 Bilibili API 将 bvid 转换为 avid"""
         try:
-            url = f"https://www.bilibili.com/video/{bvid}"
-            self.video_preview.setUrl(QUrl(url))  # 加载完整视频页面
-
+            url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                avid = data['data']['aid']
+                return avid
+            else:
+                self.log_message(f"API 请求失败，状态码: {response.status_code}")
+                return None
         except Exception as e:
-            self.video_preview.setHtml(f"<h2>视频加载失败: {str(e)}</h2>")
+            self.log_message(f"获取 avid 失败: {str(e)}")
+            return None
 
     def auto_get_videos(self):
         """自动获取推荐视频的评论并处理"""
@@ -339,14 +300,8 @@ class MainWindow(QWidget):
         if self.log_area.verticalScrollBar().value() == self.log_area.verticalScrollBar().maximum():
             self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
-    def open_in_browser(self):
-        """在默认浏览器中打开 Bilibili 视频页面"""
-        if self.current_bvid:
-            url = f"https://www.bilibili.com/video/{self.current_bvid}"
-            webbrowser.open(url)
-
-    def timerEvent(self, event):
-        """定时器事件，用于检查队列并更新 UI"""
+    def check_queue(self):
+        """定期检查队列并更新 UI"""
         try:
             while True:
                 reply, isp, rule = self.result_queue.get_nowait()

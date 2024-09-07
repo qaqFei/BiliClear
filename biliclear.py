@@ -157,8 +157,8 @@ with open("./rules.txt", "r", encoding="utf-8") as f:
 
 face_detector = cv2.CascadeClassifier("./haarcascade_frontalface_default.xml")
 
-print("加载完成, BiliClear将在2.0s后开始运行")
-time.sleep(2.0)
+print("加载完成, BiliClear将在0.3s后开始运行")
+time.sleep(0.3)
 syscmds.clearScreen()
 
 def getVideos():
@@ -362,7 +362,7 @@ def waitRiskControl(output: bool = True):
     global waitRiskControl_TimeRemaining, waitingRiskControl
     
     stopSt = time.time()
-    stopMinute = 10
+    stopMinute = 3
     waitRiskControl_TimeRemaining = 60 * stopMinute
     waitingRiskControl = True
     print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
