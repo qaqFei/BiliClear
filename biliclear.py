@@ -203,7 +203,7 @@ def req_bili_report_api(data: dict):
             "csrf": csrf
         }
     ).json()
-    time.sleep(2.0)
+    time.sleep(3.5)
     result_code = result["code"]
     if result_code not in (0, 12019):
         print("b站举报API调用失败, 返回体：", result)
@@ -272,8 +272,10 @@ def processReply(reply: dict):
     if isp:
         pornReplyCount += 1
         report(reply, r)
+        
     checkedReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
     checkedReplies = checkedReplies[:1500]
+    return isp, r
 
 def setMethod():
     global method
