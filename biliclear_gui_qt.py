@@ -31,6 +31,7 @@ import biliclear  # 引入主程序中的功能
 
 CONFIG_FILE = './config.json'
 
+
 def load_config():
     """加载配置文件"""
     if exists(CONFIG_FILE):
@@ -39,13 +40,16 @@ def load_config():
     else:
         return None
 
+
 def save_config(config):
     """保存配置文件"""
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
 
+
 class SettingsDialog(QDialog):
     """配置对话框，允许用户设置 GPT 和其他配置"""
+
     def __init__(self, config, parent=None):
         super().__init__(parent)
         self.config = config
@@ -115,8 +119,10 @@ class SettingsDialog(QDialog):
         QMessageBox.information(self, '设置已保存', '配置已成功保存！')
         self.close()
 
+
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
+
     def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
         super().__init__()
         self.avids = avids
@@ -152,6 +158,7 @@ class CommentProcessorThread(threading.Thread):
         # 如果线程处理完毕但视频数量不足 10，自动启动新任务
         if self.video_counter < 10:
             self.parent.auto_get_videos()
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -322,7 +329,8 @@ class MainWindow(QWidget):
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid, parent=self)
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
+                                                       parent=self)
         self.processor_thread.start()
 
     def update_current_avid(self, avid):
@@ -401,6 +409,7 @@ class MainWindow(QWidget):
         """显示设置对话框"""
         dialog = SettingsDialog(self.config, self)
         dialog.exec()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
