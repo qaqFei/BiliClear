@@ -163,7 +163,7 @@ except Exception:
     print("警告: 保存config.json失败")
 
 try:
-    if not checkSmtpPassword():
+    if enable_email and not checkSmtpPassword():
         print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
 except ssl.SSLError:
     print("请选择有SSL的SMTP服务器端口, 或检查代理服务和网络链接是否正常")
