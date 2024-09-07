@@ -61,6 +61,8 @@
 - `csrf`: 🔐 B站api请求体中的 `csrf`
 - `reply_limit`: 🔒 单条视频获取评论的最大数量 尽量不要大于100 可能会被风控
 - `enable_gpt`: 🤖 是否启用GPT进行评论过滤
+- `gpt_apibase`: 🔗 GPT的API地址
+- `gpt_proxy`: 🔗 GPT的代理地址
 - `gpt_apikey`: 🔑 GPT的API密钥
 - `gpt_model`: 🧠 GPT的模型名称
 - `enable_email`: 📧 是否启用邮件发送
