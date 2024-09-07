@@ -196,7 +196,7 @@ def isPorn(text: str):
             return True, rule
     return False, None
 
-def req_bili_report_api(data: dict):
+def req_bili_report_api(data: dict, rule: str):
     "调用B站举报API"
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
@@ -205,8 +205,13 @@ def req_bili_report_api(data: dict):
             "type": 1,
             "oid": data["oid"],
             "rpid": data["rpid"],
-            "reason": 2,
-            "csrf": csrf
+            "reason": 0,
+            "csrf": csrf,
+            "content": f"""
+举报原因: 色情, 或...
+程序匹配到的规则: {rule}
+(此举报信息自动生成, 可能会存在误报)
+"""
         }
     ).json()
     time.sleep(3.5)
@@ -250,7 +255,7 @@ def report(data: dict, r: str):
         smtp_con.quit()
     
     if bili_report_api:
-        req_bili_report_api(data)
+        req_bili_report_api(data, r)
     
     print() # next line
 
