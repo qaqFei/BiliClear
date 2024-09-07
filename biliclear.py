@@ -35,6 +35,7 @@ def saveConfig():
             "csrf": csrf,
             "reply_limit": reply_limit,
             "enable_gpt": enable_gpt,
+            "gpt_apibase": gpt.openai.api_base,
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
             "enable_email": enable_email,
@@ -124,6 +125,7 @@ else:
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
             reply_limit = config.get("reply_limit", 100)
             enable_gpt = config.get("enable_gpt", False)
+            gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
             gpt.openai.api_key = config.get("gpt_apikey", "")
             gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
             enable_email = config.get("enable_email", True)
