@@ -248,6 +248,7 @@ def processReply(reply: dict):
     isp, r = isPorn(reply_msg)
     if not isp and use_gpt:
         isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
+        print(f"调用GPT进行检测, 结果: {isp}")
     if isp:
         pornReplyCount += 1
         report(reply, r)
