@@ -45,7 +45,6 @@ def saveConfig():
         }, indent=4, ensure_ascii=False))
 
 def loadConfig():
-    global config
     global sender_email, sender_password
     global headers, smtp_server, smtp_port
     global bili_report_api, csrf
