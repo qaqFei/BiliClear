@@ -5,8 +5,8 @@ import webbrowser
 import json
 import requests
 from os.path import exists
-from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QEvent
-from PyQt6.QtGui import QIcon, QTextCursor, QClipboard
+from PyQt6.QtCore import Qt, QTimer, QTime
+from PyQt6.QtGui import QIcon, QTextCursor
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
                              QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox)
@@ -142,6 +142,10 @@ class CommentProcessorThread(threading.Thread):
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
+        # 如果线程处理完毕但视频数量不足 10，自动启动新任务
+        if self.video_counter < 10:
+            self.parent.auto_get_videos()
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -157,10 +161,17 @@ class MainWindow(QWidget):
         self.result_queue = queue.Queue()
         self.log_queue = queue.Queue()
 
+        self.last_log_time = QTime.currentTime()
+
         self.initUI()
 
-        # 定时器，每 100ms 检查一次队列的更新，更新 UI
+        # 定时器，每 100ms 检查一次队列的更新，更新 UI 和日志
         self.timer = self.startTimer(100)
+
+        # 定时器检查 15 秒内无日志输出时启动新任务
+        self.timeout_timer = QTimer()
+        self.timeout_timer.timeout.connect(self.check_for_timeout)
+        self.timeout_timer.start(1000)  # 每秒检查一次是否超时
 
         self.current_bvid = None
         self.processor_thread = None
@@ -202,15 +213,15 @@ class MainWindow(QWidget):
 
         left_widget.setLayout(left_layout)
 
-        # 右侧布局 - 统计信息和违规评论
+        # 右侧布局 - 数据统计和设置
         right_widget = QWidget()
         right_layout = QVBoxLayout()
 
-        # 统计信息
-        self.stats_label = QLabel(self.get_stats_text())
+        # 数据统计
+        self.stats_label = QLabel(self.get_stats_text())  # 显示统计信息
         right_layout.addWidget(self.stats_label)
 
-        # 当前 Avid 显示，并支持点击复制
+        # 当前 Avid 显示
         self.current_avid_label = QLabel("当前视频 Avid: 无")
         self.current_avid_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.current_avid_label.mousePressEvent = self.copy_avid_to_clipboard
@@ -223,6 +234,10 @@ class MainWindow(QWidget):
         self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         right_layout.addWidget(self.violation_table)
 
+        self.settings_btn = QPushButton('配置设置', self)
+        self.settings_btn.clicked.connect(self.show_settings_dialog)
+        right_layout.addWidget(self.settings_btn)
+
         right_widget.setLayout(right_layout)
 
         splitter.addWidget(left_widget)
@@ -231,7 +246,6 @@ class MainWindow(QWidget):
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
-
         self.show()
 
     def get_stats_text(self):
@@ -351,6 +365,7 @@ class MainWindow(QWidget):
     def log_message(self, message):
         """日志显示"""
         self.log_area.append(message)
+        self.last_log_time = QTime.currentTime()  # 记录最后一次日志时间
         if self.log_area.verticalScrollBar().value() == self.log_area.verticalScrollBar().maximum():
             self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
@@ -369,6 +384,12 @@ class MainWindow(QWidget):
                 self.log_message(log_msg)
         except queue.Empty:
             pass
+
+    def check_for_timeout(self):
+        """检查是否在 15 秒内无日志输出，超时则自动开始新任务"""
+        if self.last_log_time.secsTo(QTime.currentTime()) > 15:
+            self.log_message("超时 15 秒，自动启动新任务...")
+            self.auto_get_videos()
 
     def show_settings_dialog(self):
         """显示设置对话框"""
