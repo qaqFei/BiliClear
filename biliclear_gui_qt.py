@@ -1,14 +1,31 @@
 # 该文件不由qaqFei维护
+print("""
+ ██████╗ ████████╗ ██████╗ ██╗   ██╗██╗    ██████╗ ██╗   ██╗
+██╔═══██╗╚══██╔══╝██╔════╝ ██║   ██║██║    ██╔══██╗╚██╗ ██╔╝
+██║   ██║   ██║   ██║  ███╗██║   ██║██║    ██████╔╝ ╚████╔╝ 
+██║▄▄ ██║   ██║   ██║   ██║██║   ██║██║    ██╔══██╗  ╚██╔╝  
+╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝██║    ██████╔╝   ██║   
+ ╚══▀▀═╝    ╚═╝    ╚═════╝  ╚═════╝ ╚═╝    ╚═════╝    ╚═╝   
 
+ ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗  
+██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝  
+██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗    
+██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝    
+╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║       
+ ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝       
+ 请稍等，在加载依赖。。。
+""")
 import sys
 import webbrowser
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
-                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView)
+
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
 from PyQt6.QtGui import QIcon, QTextCursor
 from PyQt6.QtWebEngineWidgets import QWebEngineView  # 确保使用 QWebEngineView 支持 HTML5
-import requests
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
+                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView)
+
 import biliclear  # 调用主程序中的函数
+
 
 class CommentProcessor(QThread):
     comment_processed = pyqtSignal(dict)
@@ -37,6 +54,7 @@ class CommentProcessor(QThread):
                 self.log_message.emit(f"处理评论: {reply['content']['message']}")
                 self.comment_processed.emit(reply)
                 self.count_violations.emit(isp)
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -249,21 +267,6 @@ class MainWindow(QWidget):
 
 
 if __name__ == '__main__':
-    print("""
- ██████╗ ████████╗ ██████╗ ██╗   ██╗██╗    ██████╗ ██╗   ██╗
-██╔═══██╗╚══██╔══╝██╔════╝ ██║   ██║██║    ██╔══██╗╚██╗ ██╔╝
-██║   ██║   ██║   ██║  ███╗██║   ██║██║    ██████╔╝ ╚████╔╝ 
-██║▄▄ ██║   ██║   ██║   ██║██║   ██║██║    ██╔══██╗  ╚██╔╝  
-╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝██║    ██████╔╝   ██║   
- ╚══▀▀═╝    ╚═╝    ╚═════╝  ╚═════╝ ╚═╝    ╚═════╝    ╚═╝   
-                                                            
- ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗  
-██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝  
-██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗    
-██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝    
-╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║       
- ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝       
-""")
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
