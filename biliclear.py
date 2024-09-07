@@ -152,7 +152,7 @@ except Exception:
 if not checkSmtpPassword():
     print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
 
-with open("./rules.txt", "r", encoding="utf-8") as f:
+with open("./res/rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
