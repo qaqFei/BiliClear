@@ -2,62 +2,45 @@ import smtplib
 import json
 import time
 import sys
-import re
-import requests
-import biliauth
-import syscmds
+import re # used for rules matching
 from email.mime.text import MIMEText
 from email.header import Header
-from datetime import datetime
 from os import chdir
 from os.path import exists, dirname, abspath
 from getpass import getpass
 
-# 修改 sys.excepthook
-sys.excepthook = (
-    lambda *args: [print("^C"), sys.exit()]
-    if KeyboardInterrupt in args[0].mro()
-    else sys.__excepthook__(*args)
-)
+import requests
+
+import biliauth
+import syscmds
+
+sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
-if selfdir == "":
-    selfdir = abspath(".")
+if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
 
-
-def saveConfig() -> None:
-    """保存当前配置到 config.json 文件。"""
+def saveConfig():
     with open("./config.json", "w", encoding="utf-8") as f:
-        f.write(
-            json.dumps(
-                {
-                    "sender_email": sender_email,
-                    "sender_password": sender_password,
-                    "headers": headers,
-                    "smtp_server": smtp_server,
-                    "smtp_port": smtp_port,
-                    "bili_report_api": bili_report_api,
-                    "csrf": csrf,
-                    "reply_limit": reply_limit,
-                },
-                indent=4,
-                ensure_ascii=False,
-            )
-        )
+        f.write(json.dumps({
+            "sender_email": sender_email,
+            "sender_password": sender_password,
+            "headers": headers,
+            "smtp_server": smtp_server,
+            "smtp_port": smtp_port,
+            "bili_report_api": bili_report_api,
+            "csrf": csrf,
+            "reply_limit": reply_limit
+        }, indent=4, ensure_ascii=False))
 
-
-def getCsrf(cookie: str) -> str:
-    """从 Bilibili Cookie 中提取 CSRF token。"""
+def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
-    except IndexError as e:
-        print("Bilibili Cookie 格式错误, 重启 BiliClear 或删除 config.json")
-        raise SystemExit from e
+    except IndexError:
+        print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
+        raise SystemExit
 
-
-def checkSmtpPassword() -> bool:
-    """检查 SMTP 密码是否正确。"""
+def checkSmtpPassword():
     try:
         smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
         smtp_con.login(sender_email, sender_password)
@@ -66,79 +49,58 @@ def checkSmtpPassword() -> bool:
     except smtplib.SMTPAuthenticationError:
         return False
 
-
-def getCookieFromUser() -> str:
-    """获取用户输入的 Bilibili Cookie，如果用户选择二维码登录则调用 biliauth 模块进行登录。"""
+def getCookieFromUser():
     if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
-        return getpass("请输入 Bilibili cookie: ")
+        return getpass("Bilibili cookie: ")
     else:
         return biliauth.bilibiliAuth()
 
-
-def checkCookie() -> bool:
-    """检查 Bilibili Cookie 是否有效。"""
+def checkCookie():
     result = requests.get(
         "https://passport.bilibili.com/x/passport-login/web/cookie/info",
-        headers=headers,
-        data={"csrf": csrf},
+        headers = headers,
+        data = {
+            "csrf": csrf
+        }
     ).json()
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
-
-predefined_smtp_options = {
-    "1": {"server": "smtp.aliyun.com", "port": 465},
-    "2": {"server": "smtp.gmail.com", "port": 465},
-    "3": {"server": "smtp.sina.com.cn", "port": 465},
-    "4": {"server": "smtp.tom.com", "port": 465},
-    "5": {"server": "smtp.163.com", "port": 465},
-    "6": {"server": "smtp.126.com", "port": 465},
-    "7": {"server": "smtp.mail.yahoo.com", "port": 465},
-    "8": {"server": "smtp.qq.com", "port": 465},
-    "9": {"server": "smtp.sohu.com", "port": 465},
-    "10": {"server": "smtp.live.com", "port": 587},
-    "11": {"server": "smtp.office365.com", "port": 587},
-    "12": {"server": "smtp.qq.com", "port": 465},
-    "13": {"server": "smtp.feishu.cn", "port": 465},
-}
-
-
-def get_smtp_config():
-    print("\nSMTP 服务器选项:")
-    for k, v in predefined_smtp_options.items():
-        print(f"    {k}.SMTP 服务器 = {v['server']}, port = {v['port']}")
-
-    choice = input("\n选择 SMTP 服务器 (输入数字，自定义SMTP服务器请输入0): ")
-    if choice == "0":
-        server = input("自定义 SMTP 服务器: ")
-        port = int(input("自定义 SMTP 端口: "))
-    elif option := predefined_smtp_options.get(choice):
-        server = option["server"]
-        port = option["port"]
-    else:
-        print("无效选项, 退出中...")
-        raise SystemExit
-
-    return server, port
-
-
 if not exists("./config.json"):
-    sender_email = input("举报者邮箱: ")
-    sender_password = getpass("邮箱授权密码: ")
+    sender_email = input("Report sender email: ")
+    sender_password = getpass("Report sender password: ")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        "Cookie": getCookieFromUser(),
+        "Cookie": getCookieFromUser()
     }
-
+    
     csrf = getCsrf(headers["Cookie"])
-
-    smtp_server, smtp_port = get_smtp_config()
-
-    bili_report_api = (
-        "y" in input("是否额外使用 B 站评论举报 API 进行举报, 默认为否(y/n): ").lower()
-    )
+        
+    smtps = {
+        "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
+        "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
+        "@sina.com": {"server": "smtp.sina.com.cn", "port": 465},
+        "@tom.com": {"server": "smtp.tom.com", "port": 465},
+        "@163.com": {"server": "smtp.163.com", "port": 465},
+        "@126.com": {"server": "smtp.126.com", "port": 465},
+        "@yahoo.com": {"server": "smtp.mail.yahoo.com", "port": 465},
+        "@foxmail.com": {"server": "smtp.qq.com", "port": 465},
+        "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
+        "@hotmail.com": {"server": "smtp.live.com", "port": 587},
+        "@outlook.com": {"server": "smtp.office365.com", "port": 587},
+        "@qq.com": {"server": "smtp.qq.com", "port": 465},
+        "@feishu.cn": {"server": "smtp.feishu.cn", "port": 465}
+    }
+    
+    print("\nSMTP 服务器:")
+    for k, v in smtps.items():
+        print(f"    {k}: server = {v['server']}, port = {v['port']}")
+    
+    smtp_server = input("\nSMTP server: ")
+    smtp_port = int(input("SMTP port: "))
+    bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
     reply_limit = 100
 else:
-    with open("./config.json", encoding="utf-8") as f:
+    with open("./config.json", "r", encoding="utf-8") as f:
         try:
             config = json.load(f)
             sender_email = config["sender_email"]
@@ -150,94 +112,40 @@ else:
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
             reply_limit = config.get("reply_limit", 100)
         except Exception as e:
-            print("加载 config.json 失败, 请删除或修改 config.json, 错误:", repr(e))
-            print("如果你之前更新过 BiliClear, 请删除 config.json 并重新运行")
+            print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
+            print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
             print("请按回车键退出...")
             syscmds.pause()
-            raise SystemExit from e
-
+            raise SystemExit
 
 if not checkCookie():
-    print("Bilibili cookie 已过期或失效, 请重新登录")
+    print("bilibili cookie已过期或失效, 请重新登录")
     headers["Cookie"] = getCookieFromUser()
     csrf = getCsrf(headers["Cookie"])
-
+    
 try:
     saveConfig()
 except Exception:
-    print("警告: 保存 config.json 失败")
+    print("警告: 保存config.json失败")
 
 if not checkSmtpPassword():
-    print("警告: SMTP 密钥不正确, 请检查 SMTP 密钥")
+    print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
 
+with open("./rules.txt", "r", encoding="utf-8") as f:
+    rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
-# 定义规则检查器类
-class RuleChecker:
-    def __init__(self, rules: list):
-        self.rules = rules
-
-    def _parse_rule(self, rule: str) -> str | None:
-        """解析规则字符串，将其转换为条件表达式。"""
-        # 转换规则字符串为可以执行的表达式
-        try:
-            # 替换一些特殊字符，确保规则的安全性
-            rule = rule.replace(" and ", " and ").replace(" or ", " or ")
-            # 验证规则是否符合预期的表达式格式
-            if re.match(r'^[\w\s"\'!=<>().]+$', rule):
-                return rule
-        except Exception:
-            return None
-
-    def is_porn(self, text: str) -> tuple[bool, str | None]:
-        """检查文本是否符合色情内容规则。"""
-        for rule in self.rules:
-            parsed_rule = self._parse_rule(rule)
-            if parsed_rule is not None:
-                # 使用局部上下文执行规则检查
-                local_context = {"text": text}
-                try:
-                    if eval(
-                        parsed_rule, {}, local_context
-                    ):  # 使用 eval 安全执行解析后的表达式
-                        return True, rule
-                except Exception as e:
-                    print(f"规则解析错误: {rule}, 错误: {e}")
-        return False, None
-
-
-def load_rules(file_path: str) -> list:
-    "从规则文件中加载规则"
-    with open(file_path, encoding="utf-8") as f:
-        return [
-            line.strip()
-            for line in f
-            if line.strip() and "eval" not in line and "exec" not in line
-        ]
-
-
-# 实例化规则检查器
-rules = load_rules("./rules.txt")
-rule_checker = RuleChecker(rules)
-
-
-print("加载完成, BiliClear 将在 2.0s 后开始运行")
+print("加载完成, BiliClear将在2.0s后开始运行")
 time.sleep(2.0)
 syscmds.clearScreen()
 
-
-def getVideos() -> list[str]:
-    """获取推荐视频的 AVID 列表。"""
+def getVideos():
     return [
         i["param"]
-        for i in requests.get(
-            "https://app.bilibili.com/x/v2/feed/index", headers=headers
-        ).json()["data"]["items"]
+        for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
         if i.get("can_play", 0)
     ]
 
-
-def getReplys(avid: str | int) -> list[dict]:
-    """获取指定视频的评论列表。"""
+def getReplys(avid: str|int):
     maxNum = reply_limit
     page = 1
     replies = []
@@ -245,7 +153,7 @@ def getReplys(avid: str | int) -> list[dict]:
         time.sleep(0.4)
         result = requests.get(
             f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
-            headers=headers,
+            headers=headers
         ).json()
         try:
             if not result["data"]["replies"]:
@@ -256,39 +164,41 @@ def getReplys(avid: str | int) -> list[dict]:
         page += 1
     return replies
 
+def isPorn(text: str):
+    for rule in rules:
+        if eval(rule): # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
+            return True, rule
+    return False, None
 
-def req_bili_report_api(data: dict[str, str | int]) -> None:
-    """调用 Bilibili 举报 API 进行举报。"""
+def req_bili_report_api(data: dict):
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
-        headers=headers,
-        data={
+        headers = headers,
+        data = {
             "type": 1,
             "oid": data["oid"],
             "rpid": data["rpid"],
             "reason": 2,
-            "csrf": csrf,
-        },
+            "csrf": csrf
+        }
     ).json()
     time.sleep(2.0)
     result_code = result["code"]
     if result_code not in (0, 12019):
-        print("B站举报API调用失败, 返回体：", result)
+        print("b站举报API调用失败, 返回体：", result)
     elif result_code == 0:
-        print("Bilibili 举报 API 调用成功")
+        print("Bilibili举报API调用成功")
     elif result_code == 12019:
-        print("举报过于频繁, 等待 60s")
+        print("举报过于频繁, 等待60s")
         time.sleep(60)
         return req_bili_report_api(data)
 
-
-def report(data: dict, r: str) -> None:
-    """生成并发送举报邮件。"""
+def report(data: dict, r: str):
     report_text = f"""
 违规用户UID：{data["mid"]}
 违规类型：色情
 违规信息发布形式：评论, (动态)
-问题描述：该评论疑似发布色情信息，破坏了 B 站和互联网的和谐环境
+问题描述：该评论疑似发布色情信息，破坏了B站和互联网的和谐环境
 诉求：移除违规内容，封禁账号
 
 评论数据内容(B站API返回, x/v2/reply):
@@ -301,102 +211,88 @@ def report(data: dict, r: str) -> None:
 """
     print("\n违规评论:", repr(data["content"]["message"]))
     print("规则:", r)
-
+    
     msg = MIMEText(report_text, "plain", "utf-8")
-    msg["From"] = str(Header("Report", "utf-8"))
-    msg["To"] = str(Header("Bilibili", "utf-8"))
-    msg["Subject"] = str(Header("违规内容举报", "utf-8"))
+    msg["From"] = Header("Report", "utf-8")
+    msg["To"] = Header("Bilibili", "utf-8")
+    msg["Subject"] = Header("违规内容举报", "utf-8")
     smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
     smtp_con.login(sender_email, sender_password)
     smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
     smtp_con.quit()
-
+    
     if bili_report_api:
         req_bili_report_api(data)
+    
+    print() # next line
 
-    print()  # next line
-
-
-def processReply(reply: dict) -> None:
-    """处理回复，检查是否包含色情内容并进行举报。"""
+def processReply(reply: dict):
     global replyCount, pornReplyCount, checkedReplies
-
+    
     replyCount += 1
-    isp, r = rule_checker.is_porn(reply["content"]["message"])
-    if isp and r is not None:
+    isp, r = isPorn(reply["content"]["message"])
+    if isp:
         pornReplyCount += 1
         report(reply, r)
     checkedReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
     checkedReplies = checkedReplies[:1500]
 
-
-def setMethod() -> None:
-    """设置方法选择。"""
+def setMethod():
     global method
     method = None
-    method_choices = {"1": "自动获取推荐视频评论", "2": "获取指定视频评论"}
-
+    method_choices = {
+        "1": "自动获取推荐视频评论",
+        "2": "获取指定视频评论"
+    }
+    
     while method not in method_choices.keys():
         if method is not None:
             print("输入错误")
-
-        print("tip: 请定期检查 bilibili cookie 是否过期 (BiliClear 启动时会自动检查)\n")
+        
+        print("tip: 请定期检查bilibili cookie是否过期 (BiliClear启动时会自动检查)\n")
         for k, v in method_choices.items():
             print(f"{k}. {v}")
         method = input("选择: ")
         syscmds.clearScreen()
-
-
-def bvid2avid(bvid: str) -> str:
-    """将 BV 号转换为 AV 号。"""
+        
+def bvid2avid(bvid: str):
     result = requests.get(
-        f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}", headers=headers
+        f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
+        headers=headers
     ).json()
     return result["data"]["aid"]
-
 
 videoCount = 0
 replyCount = 0
 pornReplyCount = 0
 waitRiskControl_TimeRemaining = float("nan")
 waitingRiskControl = False
-checkedVideos: list[tuple[str, float]] = []
-checkedReplies: list[tuple[str, str, float]] = []
+checkedVideos = []
+checkedReplies = []
 
-
-def _checkVideo(avid: str | int) -> None:
-    """检查指定视频的评论。"""
+def _checkVideo(avid: str|int):
     for reply in getReplys(avid):
         processReply(reply)
-
-
-def checkNewVideos() -> None:
-    """检查新一轮推荐视频的评论。"""
+    
+def checkNewVideos():
     global videoCount, replyCount, pornReplyCount, checkedVideos
-
-    print(("\n" if videoCount != 0 else "") + "开始检查新一轮推荐视频...")
+    
+    print(f"{"\n" if videoCount != 0 else ""}开始检查新一轮推荐视频...")
     print(f"已检查视频: {videoCount}")
     print(f"已检查评论: {replyCount}")
-    print(
-        f"已举报评论: {pornReplyCount} 评论违规率: {((pornReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%"
-    )
-    print()  # next line
-
+    print(f"已举报评论: {pornReplyCount} 评论违规率: {((pornReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
+    print() # next line
     for avid in getVideos():
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{current_time}] 正在检查视频: av{avid}")
+        print(f"开始检查视频: av{avid}, 现在时间: {time.time()}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
         checkedVideos = checkedVideos[:1500]
-
     time.sleep(1.25)
 
-
-def checkVideo(bvid: str) -> None:
-    """检查指定 BV 号的视频评论。"""
+def checkVideo(bvid: str):
     global videoCount, checkedVideos
-
+    
     avid = bvid2avid(bvid)
     _checkVideo(avid)
     videoCount += 1
@@ -404,11 +300,9 @@ def checkVideo(bvid: str) -> None:
     checkedVideos = checkedVideos[:1500]
     time.sleep(1.25)
 
-
-def waitRiskControl(output: bool = True) -> None:
-    """等待风控解除。"""
+def waitRiskControl(output: bool = True):
     global waitRiskControl_TimeRemaining, waitingRiskControl
-
+    
     stopSt = time.time()
     stopMinute = 10
     waitRiskControl_TimeRemaining = 60 * stopMinute
@@ -417,14 +311,11 @@ def waitRiskControl(output: bool = True) -> None:
     while time.time() - stopSt < 60 * stopMinute:
         waitRiskControl_TimeRemaining = 60 * stopMinute - (time.time() - stopSt)
         if output:
-            print(
-                f"由于可能被风控, BiliClear 暂停 {stopMinute} 分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s"
-            )
+            print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
             time.sleep(1.5)
         else:
             time.sleep(0.005)
     waitingRiskControl = False
-
 
 if __name__ == "__main__":
     setMethod()
@@ -434,7 +325,7 @@ if __name__ == "__main__":
                 case "1":
                     checkNewVideos()
                 case "2":
-                    checkVideo(input("\n输入视频 bvid: "))
+                    checkVideo(input("\n输入视频bvid: "))
                 case _:
                     print("链接格式错误")
         except Exception as e:
