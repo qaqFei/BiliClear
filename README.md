@@ -1,60 +1,160 @@
-# BiliClear 🎯
-- 这是一个可以批量举报B站`麦片`的程序 🚨
-- **需要 Python 版本 >= `3.12`** 🐍
+---
 
-## 使用方法 💡
-1. **源码使用：**
-   运行以下命令进行使用前的初始化：
+# BiliClear & GPT 判别系统 🎯
 
+BiliClear 是一个可以批量举报B站`麦片`和违规评论的程序，支持自动化处理并且整合了 OpenAI GPT 模型以辅助判断评论是否违规。支持两种运行模式：命令行模式（主程序）和图形界面模式（GUI），适合用户的不同需求。
+
+---
+
+## 一、使用方法 💡
+
+### 1. 源码使用：
+1. 克隆项目并安装依赖：
    ```bash
    git clone https://github.com/qaqFei/BiliClear.git
    cd BiliClear
    pip3 install -r requirements.txt
+   ```
+
+2. 运行主程序：
+   ```bash
    python3 biliclear.py
    ```
 
-2. **启动程序：**
-   - **GUI仅限Windows可用**
+### 2. 启动 GUI 程序：
+1. 运行 GUI：
+   ```bash
+   python3 gui.py
+   ```
 
-   - 程序第一次启动时，需输入以下参数：
-      - `Report sender email`: 📧 发送举报邮件的邮箱
-      - `Report sender password`: 🔑 邮箱的 `SMTP` 密钥，不是密码！（输入无回显）
-      - `Bilibili cookie`: 🍪 需定期更新 `config.json` 内的 `Bilibili cookie`（输入无回显）
-      - `SMTP server`: ✉️ 邮箱的 `SMTP` 服务器地址，会列出常用的选项
-      - `SMTP port`: 🚪 `SMTP` 服务器端口
+### 3. 使用 OpenAI GPT 模型辅助判别：
 
-3. **处理异常：**
-   若与 `config.json` 相关的异常出现，处理方式如下：
-   - 修改 `config.json`，更新 `bilibili cookie` 或修改邮箱 `SMTP` 密钥
-   - 删除 `config.json`，重新输入参数
-   - 版本更新时建议删除 `config.json`，避免出现 `KeyError`
+为了检测评论中的违规内容，程序提供了通过 OpenAI 的 GPT 模型进行自动化分析的功能。这些分析功能被封装在 `gpt.py` 文件中。
 
-4. **Cookie 过期提示：**
-   - 如果 `bilibili cookie` 过期，可能导致获取评论为空，程序不会输出任何内容。
+#### 3.1 GPT 辅助判别功能：
+1. **GPT 处理成人内容检测**：
+   使用 `gpt_porn` 函数检测评论中是否包含成人或明确的色情内容。
 
-5. **SMTP 服务器选择：**
-   - 请选择对应的邮箱服务的 `SMTP` 服务器，会列出常见的服务器选项。
+   - **调用方式**：
+     ```python
+     from gpt import gpt_porn
+     
+     api_key = "your_openai_api_key"
+     content = "检测的评论内容"
+     
+     is_porn = gpt_porn(content, api_key)
+     print(is_porn)  # 返回 True 表示包含成人内容，False 表示不包含。
+     ```
 
-## `config.json` 配置文件 📝
-- `sender_email`: 📧 发送举报邮件的邮箱
-- `sender_password`: 🔑 邮箱的 `SMTP` 密钥
-- `headers`: 📨 B站api的请求头
-- `smtp_server`: ✉️ 邮箱的 `SMTP` 服务器地址
-- `smtp_port`: 🚪 `SMTP` 服务器端口
-- `bili_report_api`: 📡 是否调用B站api的举报接口
-- `csrf`: 🔐 B站api请求体中的 `csrf`
-- `reply_limit`: 🔒 单条视频获取评论的最大数量 尽量不要大于100 可能会被风控
+2. **GPT 处理广告内容检测**：
+   使用 `gpt_ad` 函数检测评论中是否包含广告或推广内容。
 
-## 开发贡献 🤝
-- **过滤规则：**
-  过滤规则在 `rules.txt` 文件中，每一行为一个 Python 表达式，只要有任何一个匹配即判定为违规。
-  - 变量：`text`，评论内容，类型为 `str`
-  - 表达式中禁止使用 `eval`、`exec` 等函数
-  - 可使用正则表达式，默认导入 `re` 模块
+   - **调用方式**：
+     ```python
+     from gpt import gpt_ad
+     
+     api_key = "your_openai_api_key"
+     content = "检测的评论内容"
+     
+     # 允许检测含有 @ 字符的广告评论
+     is_ad = gpt_ad(content, api_key, need_at=True)
+     print(is_ad)  # 返回 True 表示包含广告内容，False 表示不包含。
+     ```
 
-## 声明 ⚠️
-使用 `BiliClear` 造成的任何不良后果由使用者自行承担，开发者不承担任何责任。请谨慎使用。
+   - `gpt_ad` 函数有两个可选参数：
+     - `content`: 评论内容。
+     - `need_at`: 是否只检查带有 `@` 的评论。
 
 ---
 
-**License:** MIT 📄
+## 二、配置文件（`config.json`） 📝
+首次运行程序时，系统会提示输入必要的配置参数，并生成 `config.json` 文件。该文件用于存储用户的配置信息，如 `SMTP` 服务器信息、B站 `cookie` 等。
+
+#### 配置项：
+- **`sender_email`**: 发送举报邮件的邮箱。
+- **`sender_password`**: 邮箱的 `SMTP` 密钥。
+- **`headers`**: 请求头信息，包括 B站的 `cookie`。
+- **`smtp_server`**: 邮箱的 `SMTP` 服务器地址。
+- **`smtp_port`**: `SMTP` 服务器端口。
+- **`bili_report_api`**: 是否调用 B站的举报 API。
+- **`csrf`**: 请求 API 所需的 CSRF 令牌。
+- **`reply_limit`**: 单个视频最大评论数。
+
+---
+
+## 三、GPT 判别辅助功能详细说明 💻
+
+### gpt.py 中的主要函数：
+
+#### 1. `gpt_porn(content, apikey)`
+- **功能**：检测文本中是否包含成人或色情内容。
+- **参数**：
+  - `content`: 需要检测的评论内容（文本）。
+  - `apikey`: OpenAI API 的密钥，用于调用 GPT 模型。
+- **返回**：`True` 表示评论包含成人内容，`False` 表示评论不包含成人内容。
+
+#### 2. `gpt_ad(content, apikey, need_at=True)`
+- **功能**：检测文本中是否包含广告或推广内容。
+- **参数**：
+  - `content`: 需要检测的评论内容（文本）。
+  - `apikey`: OpenAI API 的密钥，用于调用 GPT 模型。
+  - `need_at`: 可选参数，默认为 `True`，表示仅检测含有 `@` 字符的广告。如果设置为 `False`，则检测所有广告评论。
+- **返回**：`True` 表示评论包含广告内容，`False` 表示评论不包含广告内容。
+
+---
+
+## 四、主程序核心功能 🛠️
+
+### 主要函数介绍：
+
+#### `saveConfig()`
+- **功能**：保存当前配置信息至 `config.json` 文件。
+
+#### `getCsrf(cookie: str) -> str`
+- **功能**：从用户提供的 B站 `cookie` 中解析并提取 `csrf` 令牌。
+
+#### `getVideos() -> list`
+- **功能**：从 B站获取推荐视频列表。
+
+#### `getReplys(avid: str | int) -> list`
+- **功能**：根据视频 `avid` 获取对应的评论。
+
+#### `isPorn(text: str) -> Tuple[bool, str]`
+- **功能**：检测评论文本是否包含违规内容（如色情内容）。
+
+#### `report(data: dict, rule: str)`
+- **功能**：举报违规评论，并将举报信息发送到 B站和用户配置的邮箱。
+
+---
+
+## 五、GUI 程序功能介绍 🖥️
+
+GUI 提供了一个直观的用户界面来管理 B站评论检测和举报。其功能与主程序高度集成，允许用户手动输入视频 ID 或自动获取推荐视频。
+
+### 界面功能说明：
+1. **输入框**：用户可以手动输入 B站视频的 `bvid`。
+2. **评论表格**：展示视频的评论和其违规状态。
+3. **日志区**：实时显示程序运行状态和处理记录。
+4. **统计信息**：显示处理视频数量、评论数量以及违规率。
+5. **预览窗口**：显示当前处理视频的 B站页面，支持在浏览器中打开。
+
+### GUI 中的主要函数：
+
+#### `start_processing(self)`
+- **功能**：启动手动输入视频的评论处理。
+
+#### `auto_get_videos(self)`
+- **功能**：自动获取 B站推荐视频，并处理评论。
+
+#### `add_comment_to_table(self, reply: dict)`
+- **功能**：将评论添加到评论表格，并显示违规状态。
+
+#### `update_stats_label(self)`
+- **功能**：更新界面上的统计数据。
+
+#### `log_message(self, message: str)`
+- **功能**：将日志信息输出到日志区域。
+
+---
+
+通过整合 OpenAI GPT 模型与 BiliClear 的主程序，程序在违规评论的自动化检测、举报上达到了更高的准确度和智能化水平。通过 GUI 界面，用户可以更加直观、便捷地管理B站视频评论的检测和举报操作。
