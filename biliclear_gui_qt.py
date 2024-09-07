@@ -1,3 +1,19 @@
+print("""
+     ██████╗ ████████╗██╗   ██╗██╗    ██████╗ ██╗   ██╗   
+    ██╔═══██╗╚══██╔══╝██║   ██║██║    ██╔══██╗╚██╗ ██╔╝   
+    ██║   ██║   ██║   ██║   ██║██║    ██████╔╝ ╚████╔╝    
+    ██║▄▄ ██║   ██║   ██║   ██║██║    ██╔══██╗  ╚██╔╝     
+    ╚██████╔╝   ██║   ╚██████╔╝██║    ██████╔╝   ██║      
+     ╚══▀▀═╝    ╚═╝    ╚═════╝ ╚═╝    ╚═════╝    ╚═╝      
+                                                          
+ ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗
+██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝
+██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗  
+██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝  
+╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║     
+ ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
+                                                          
+正在加载依赖，请稍等。。。""")
 import sys
 import threading
 import queue
@@ -41,7 +57,6 @@ class SettingsDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle('配置设置')
-
         layout = QFormLayout()
 
         # GPT 设置
@@ -107,6 +122,7 @@ class SettingsDialog(QDialog):
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
+
     def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
         super().__init__()
         self.avids = avids
@@ -136,9 +152,6 @@ class CommentProcessorThread(threading.Thread):
 
             for reply in replies:
                 isp, rule = biliclear.processReply(reply)  # 处理评论
-                biliclear.replyCount += 1  # 更新评论计数
-                if isp:
-                    biliclear.pornReplyCount += 1  # 如果评论违规，更新违规计数
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
@@ -316,7 +329,8 @@ class MainWindow(QWidget):
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid, parent=self)
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
+                                                       parent=self)
         self.processor_thread.start()
 
     def update_current_avid(self, avid):
