@@ -2,6 +2,7 @@ import smtplib
 import json
 import time
 import sys
+import ssl
 import re  # used for rules matching
 from email.mime.text import MIMEText
 from email.header import Header
@@ -161,8 +162,14 @@ try:
 except Exception:
     print("警告: 保存config.json失败")
 
-if not checkSmtpPassword():
-    print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
+try:
+    if not checkSmtpPassword():
+        print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
+except ssl.SSLError:
+    print("请选择有SSL的SMTP服务器端口, 或检查代理服务和网络链接是否正常")
+    print("请按回车键退出...")
+    syscmds.pause()
+    raise SystemExit
 
 with open("./res/rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
