@@ -1,3 +1,5 @@
 requests~=2.32.3
 openai~=0.28.0
 PyQt6~=6.7.1
+PyQt6-WebEngine~=6.7.2
+pywebview~=5.1

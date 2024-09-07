@@ -13,6 +13,7 @@ import requests
 
 import biliauth
 import syscmds
+import gpt
 
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
@@ -30,7 +31,11 @@ def saveConfig():
             "smtp_port": smtp_port,
             "bili_report_api": bili_report_api,
             "csrf": csrf,
-            "reply_limit": reply_limit
+            "reply_limit": reply_limit,
+            "use_gpt": use_gpt,
+            "gpt_apikey": gpt.openai.api_key,
+            "gpt_model": gpt.gpt_model,
+            "use_email": use_email
         }, indent=4, ensure_ascii=False))
 
 def getCsrf(cookie: str):
@@ -98,6 +103,10 @@ if not exists("./config.json"):
     smtp_port = int(input("SMTP port: "))
     bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
     reply_limit = 100
+    use_gpt = False
+    gpt.openai.api_key = ""
+    gpt.gpt_model = "gpt-4o-mini"
+    use_email = True
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -110,6 +119,12 @@ else:
             bili_report_api = config.get("bili_report_api", False)
             csrf = config.get("csrf", getCsrf(headers["Cookie"]))
             reply_limit = config.get("reply_limit", 100)
+            use_gpt = config.get("use_gpt", False)
+            gpt.openai.api_key = config.get("gpt_apikey", "")
+            gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
+            use_email = config.get("use_email", True)
+            if reply_limit <= 20:
+                reply_limit = 100
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -195,9 +210,8 @@ def req_bili_report_api(data: dict):
 def report(data: dict, r: str):
     report_text = f"""
 违规用户UID：{data["mid"]}
-违规类型：色情
 违规信息发布形式：评论, (动态)
-问题描述：该评论疑似发布色情信息，破坏了B站和互联网的和谐环境
+问题描述：破坏了B站和互联网的和谐环境
 诉求：移除违规内容，封禁账号
 
 评论数据内容(B站API返回, x/v2/reply):
@@ -211,14 +225,15 @@ def report(data: dict, r: str):
     print("\n违规评论:", repr(data["content"]["message"]))
     print("规则:", r)
     
-    msg = MIMEText(report_text, "plain", "utf-8")
-    msg["From"] = Header("Report", "utf-8")
-    msg["To"] = Header("Bilibili", "utf-8")
-    msg["Subject"] = Header("违规内容举报", "utf-8")
-    smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
-    smtp_con.login(sender_email, sender_password)
-    smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
-    smtp_con.quit()
+    if use_email:
+        msg = MIMEText(report_text, "plain", "utf-8")
+        msg["From"] = Header("Report", "utf-8")
+        msg["To"] = Header("Bilibili", "utf-8")
+        msg["Subject"] = Header("违规内容举报", "utf-8")
+        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        smtp_con.login(sender_email, sender_password)
+        smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
+        smtp_con.quit()
     
     if bili_report_api:
         req_bili_report_api(data)
@@ -229,7 +244,10 @@ def processReply(reply: dict):
     global replyCount, pornReplyCount, checkedReplies
     
     replyCount += 1
-    isp, r = isPorn(reply["content"]["message"])
+    reply_msg = reply["content"]["message"]
+    isp, r = isPorn(reply_msg)
+    if not isp and use_gpt:
+        isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
     if isp:
         pornReplyCount += 1
         report(reply, r)
