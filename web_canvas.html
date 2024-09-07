@@ -25,7 +25,6 @@
     .img-2233 {
         position: absolute;
         width: 10%;
-        height: 10%;
         z-index: 2;
         transition: all 0.35s ease-out;
         top: 50%;
@@ -33,7 +32,7 @@
     }
 
     .img-2233:hover {
-        scale: 1.15;
+        scale: 1.5;
     }
 </style>
 
@@ -73,10 +72,9 @@
     }
 
     function update2233() {
-        img2233.style.top = `${Math.random() * 50 + 50}%`;
-        img2233.style.left = `${Math.random() * 100}%`;
-        img2233.style.rotate = `${Math.random() * 360}deg`;
-        setTimeout(update2233, Math.random() * 1000);
+        img2233.style.top = `${Math.random() * 100}%`;
+        img2233.style.left = `${Math.random() * 50 + 50}%`;
+        img2233.style.rotate = `${Math.random() * 360 * 6}deg`;
     }
 
     function load2233(url) {
@@ -84,9 +82,9 @@
         img2233.src = url;
         img2233.loading = "eager";
         img2233.onload = () => {
-            setTimeout(update2233, 1000 / 60);
             img2233.className = "img-2233";
             document.body.appendChild(img2233);
+            img2233.addEventListener("mousemove", update2233);
             loaded2233 = true;
         }
     }
