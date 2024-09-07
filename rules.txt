@@ -20,5 +20,15 @@
 "小蝴蝶" in text and "细节" in text and "！" in text
 "舞蹈了" in text and "练习" in text and "开心了" in text
 "你可能不知道" in text and "在" in text and "叫" in text
-"就你" in text
-"傻逼" in text
+"坚持锻炼" in text and "人工降雨" in text
+"夸" in text and "克" in text and "关键词" in text and "喂" in text and "料" in text and "都有" in text
+"每天" in text and "深度" in text and "水" in text and "雨" in text and "让我" in text
+"手指" in text and "流淌" in text and "提示" in text
+"麻烦" in text and "学习" in text and "提示" in text
+"汗" in text and "跨越" in text and "运动" in text and "像是" in text
+"零零" in text and "喜欢吃" in text
+"停一停" in text and "沿途" in text and "吧" in text and "的" in text and "海洋" in text
+"停一停" in text and "沿途" in text and "吧" in text and "的" in text and "一次" in text
+"好看" in text and "燃烧" in text and "哦" in text and ("！" in text or "!" in text)
+"开心一次" in text and "是" in text and "流转" in text and "不经意" in text
+"都是" in text and "]" in text and "刚才" in text and "好大" in text
