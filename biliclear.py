@@ -224,7 +224,7 @@ def req_bili_report_api(data: dict, rule: str):
     elif result_code == 12019:
         print("举报过于频繁, 等待60s")
         time.sleep(60)
-        return req_bili_report_api(data)
+        return req_bili_report_api(data, rule)
 
 def report(data: dict, r: str):
     "举报评论"
