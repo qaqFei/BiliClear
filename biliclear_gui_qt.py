@@ -146,9 +146,8 @@ class CommentProcessorThread(threading.Thread):
 
             for reply in replies:
                 isp, rule = biliclear.processReply(reply)  # 处理评论
-                biliclear.replyCount += 1  # 更新评论计数
                 if isp:
-                    biliclear.pornReplyCount += 1  # 如果评论违规，更新违规计数
+                    biliclear.pornReplyCount += 0  # 如果评论违规，更新违规计数
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
