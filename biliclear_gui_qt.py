@@ -5,10 +5,10 @@ import webbrowser
 import json
 import requests
 from os.path import exists
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QIcon, QTextCursor
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel,
-                             QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QAbstractItemView,
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QEvent
+from PyQt6.QtGui import QIcon, QTextCursor, QClipboard
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
+                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
                              QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox)
 
 import biliclear  # 引入主程序中的功能
@@ -107,23 +107,32 @@ class SettingsDialog(QDialog):
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
-    def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False):
+    def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
         super().__init__()
         self.avids = avids
         self.result_queue = result_queue
         self.log_queue = log_queue
         self.bvid = bvid
         self.enable_gpt = enable_gpt
+        self.video_counter = 0
+        self.parent = parent
 
     def run(self):
         if self.avids is None:
             self.avids = biliclear.getVideos()
 
         for avid in self.avids:
+            if self.video_counter >= 10:
+                self.log_queue.put("检查了 10 个视频，自动启动新的任务...")
+                self.parent.auto_get_videos()  # 调用主窗口的自动获取方法
+                return  # 结束当前线程，启动新的任务
+
             replies = biliclear.getReplys(avid)
             bvid = self.bvid if self.bvid else f"av{avid}"
             self.log_queue.put(f"开始处理视频: {bvid}")
             biliclear.videoCount += 1  # 更新视频计数
+            self.video_counter += 1  # 增加计数
+            self.parent.update_current_avid(avid)  # 更新当前 avid 显示
 
             for reply in replies:
                 isp, rule = biliclear.processReply(reply)  # 处理评论
@@ -150,10 +159,8 @@ class MainWindow(QWidget):
 
         self.initUI()
 
-        # 定时器，每隔 100ms 检查一次队列的更新，更新 UI
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.check_queue)
-        self.timer.start(100)
+        # 定时器，每 100ms 检查一次队列的更新，更新 UI
+        self.timer = self.startTimer(100)
 
         self.current_bvid = None
         self.processor_thread = None
@@ -163,39 +170,68 @@ class MainWindow(QWidget):
         self.setGeometry(300, 300, 1200, 600)
         self.setWindowIcon(QIcon('icon.ico'))  # 设置窗口图标为根目录下的 icon.ico
 
-        main_layout = QVBoxLayout()
+        # 创建主布局
+        main_layout = QHBoxLayout()
+        splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # 统计部分显示
-        self.stats_label = QLabel(self.get_stats_text())  # 显示统计信息
-        main_layout.addWidget(self.stats_label)
+        # 左侧布局 - 评论和日志
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
 
         self.input_box = QLineEdit(self)
         self.input_box.setPlaceholderText("请输入 B 站视频的 bvid")
-        main_layout.addWidget(self.input_box)
+        left_layout.addWidget(self.input_box)
 
         self.comment_table = QTableWidget(0, 2, self)
         self.comment_table.setHorizontalHeaderLabels(["评论内容", "违规状态"])
         self.comment_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.comment_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        main_layout.addWidget(self.comment_table)
+        left_layout.addWidget(self.comment_table)
 
         self.log_area = QTextEdit(self)
         self.log_area.setReadOnly(True)
-        main_layout.addWidget(self.log_area)
+        left_layout.addWidget(self.log_area)
 
         self.start_btn = QPushButton('获取视频评论', self)
         self.start_btn.clicked.connect(self.start_processing)
-        main_layout.addWidget(self.start_btn)
+        left_layout.addWidget(self.start_btn)
 
         self.auto_btn = QPushButton('自动获取推荐视频评论', self)
         self.auto_btn.clicked.connect(self.auto_get_videos)
-        main_layout.addWidget(self.auto_btn)
+        left_layout.addWidget(self.auto_btn)
 
-        self.settings_btn = QPushButton('配置设置', self)
-        self.settings_btn.clicked.connect(self.show_settings_dialog)
-        main_layout.addWidget(self.settings_btn)
+        left_widget.setLayout(left_layout)
 
+        # 右侧布局 - 统计信息和违规评论
+        right_widget = QWidget()
+        right_layout = QVBoxLayout()
+
+        # 统计信息
+        self.stats_label = QLabel(self.get_stats_text())
+        right_layout.addWidget(self.stats_label)
+
+        # 当前 Avid 显示，并支持点击复制
+        self.current_avid_label = QLabel("当前视频 Avid: 无")
+        self.current_avid_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.current_avid_label.mousePressEvent = self.copy_avid_to_clipboard
+        right_layout.addWidget(self.current_avid_label)
+
+        # 违规评论列表
+        self.violation_table = QTableWidget(0, 1, self)
+        self.violation_table.setHorizontalHeaderLabels(["违规评论"])
+        self.violation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        right_layout.addWidget(self.violation_table)
+
+        right_widget.setLayout(right_layout)
+
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right_widget)
+        splitter.setSizes([500, 300])
+
+        main_layout.addWidget(splitter)
         self.setLayout(main_layout)
+
         self.show()
 
     def get_stats_text(self):
@@ -266,8 +302,18 @@ class MainWindow(QWidget):
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid)
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid, parent=self)
         self.processor_thread.start()
+
+    def update_current_avid(self, avid):
+        """更新当前处理的 Avid 显示"""
+        self.current_avid_label.setText(f"当前视频 Avid: {avid}")
+
+    def copy_avid_to_clipboard(self, event):
+        """将当前 Avid 复制到剪贴板"""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.current_avid_label.text().split(": ")[1])
+        self.log_message("Avid 已复制到剪贴板")
 
     def add_comment_to_table(self, reply, isp):
         comment_text = reply['content']['message']
@@ -288,6 +334,14 @@ class MainWindow(QWidget):
         self.comment_table.setItem(row_position, 0, comment_item)
         self.comment_table.setItem(row_position, 1, status_item)
 
+        if isp:
+            # 添加到违规评论列表
+            violation_row = self.violation_table.rowCount()
+            self.violation_table.insertRow(violation_row)
+            violation_item = QTableWidgetItem(comment_text)
+            violation_item.setFlags(violation_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.violation_table.setItem(violation_row, 0, violation_item)
+
         if self.comment_table.verticalScrollBar().value() == self.comment_table.verticalScrollBar().maximum():
             self.comment_table.scrollToBottom()
 
@@ -300,8 +354,8 @@ class MainWindow(QWidget):
         if self.log_area.verticalScrollBar().value() == self.log_area.verticalScrollBar().maximum():
             self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
-    def check_queue(self):
-        """定期检查队列并更新 UI"""
+    def timerEvent(self, event):
+        """定时器事件，用于检查队列并更新 UI"""
         try:
             while True:
                 reply, isp, rule = self.result_queue.get_nowait()
