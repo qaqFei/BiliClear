@@ -160,6 +160,7 @@ time.sleep(2.0)
 syscmds.clearScreen()
 
 def getVideos():
+    "获取推荐视频列表"
     return [
         i["param"]
         for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
@@ -167,6 +168,7 @@ def getVideos():
     ]
 
 def getReplys(avid: str|int):
+    "获取评论"
     maxNum = reply_limit
     page = 1
     replies = []
@@ -186,12 +188,14 @@ def getReplys(avid: str|int):
     return replies
 
 def isPorn(text: str):
+    "判断评论是否为色情内容 (使用规则, rules.txt)"
     for rule in rules:
         if eval(rule): # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
             return True, rule
     return False, None
 
 def req_bili_report_api(data: dict):
+    "调用B站举报API"
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
         headers = headers,
@@ -215,6 +219,7 @@ def req_bili_report_api(data: dict):
         return req_bili_report_api(data)
 
 def report(data: dict, r: str):
+    "举报评论"
     report_text = f"""
 违规用户UID：{data["mid"]}
 违规信息发布形式：评论, (动态)
@@ -247,12 +252,9 @@ def report(data: dict, r: str):
     
     print() # next line
 
-def processReply(reply: dict):
-    global replyCount, pornReplyCount, checkedReplies
-    
-    replyCount += 1
+def replyIsViolations(reply: dict):
+    "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
     reply_msg = reply["content"]["message"]
-    
     isp, r = isPorn(reply_msg)
     
     if not isp and enable_gpt:
@@ -268,6 +270,15 @@ def processReply(reply: dict):
         if not isinstance(face_detector.detectMultiScale(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY), scaleFactor=1.2, minNeighbors=1), tuple): # not empty
             isp, r = True, "lv.2, 检测到头像中包含人脸, ..., 可疑"
         print(f"lv.2和人脸检测, 结果: {isp}")
+    
+    return isp, r
+
+def processReply(reply: dict):
+    "处理评论并举报"
+    global replyCount, pornReplyCount, checkedReplies
+    
+    replyCount += 1
+    isp, r = replyIsViolations(reply)
         
     if isp:
         pornReplyCount += 1
