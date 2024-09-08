@@ -7,28 +7,27 @@ gpt_model = "gpt-4o-mini"
 RateLimitError = openai.error.RateLimitError
 
 def get_today_gpt_usage():
-    return 0
-    # datetime_now = datetime.datetime.now()
-    # today = f"{datetime_now.year}-{datetime_now.month:02d}-{datetime_now.day:02d}"
-    # start_time = f"{today}T00:00:00Z"
-    # end_time = f"{today}T23:59:59Z"
-    #
-    # try:
-    #     response = requests.get(
-    #         f"{openai.api_base}/usage?start={start_time}&end={end_time}",
-    #         headers = {
-    #             "Authorization": f"Bearer {openai.api_key}",
-    #         }
-    #     )
-    #     if response.status_code == 200:
-    #         data = response.json()
-    #         return data.get("total_tokens", 0)
-    #     else:
-    #         print(f"Error: Unable to retrieve GPT usage, Status code: {response.status_code}")
-    #         return 0
-    # except Exception as e:
-    #     print(f"Get today get usage error: {str(e)}")
-    #     return 0
+    datetime_now = datetime.datetime.now()
+    today = f"{datetime_now.year}-{datetime_now.month:02d}-{datetime_now.day:02d}"
+    start_time = f"{today}T00:00:00Z"
+    end_time = f"{today}T23:59:59Z"
+    
+    try:
+        response = requests.get(
+            f"{openai.api_base}/usage?start={start_time}&end={end_time}",
+            headers = {
+                "Authorization": f"Bearer {openai.api_key}",
+            }
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("total_tokens", 0)
+        else:
+            print(f"Error: Unable to retrieve GPT usage, Status code: {response.status_code}")
+            return 0
+    except Exception as e:
+        print(f"Get today get usage error: {str(e)}")
+        return 0
 
 def _gpt_replay(content, prompt) -> str:
     return openai.ChatCompletion.create(

@@ -80,18 +80,18 @@ def render():
             font = f"{(w + h) / 125}px BiliClear_UIFont",
             textAlign = "left",
             textBaseline = "top",
-            fillStyle = f"#{'FFFFFF' if replyPornRate <= 0.1 else ('EEAAAA' if replyPornRate <= 0.5 else 'EE4444')}EE",
+            fillStyle = f"#{"FFFFFF" if replyPornRate <= 0.1 else ("EEAAAA" if replyPornRate <= 0.5 else "EE4444")}EE",
             wait_execute = True
         )
         
         root.create_text(
             w * 0.02,
             h * 0.22,
-            text = f"B站API风控中: {biliclear.waitingRiskControl}{f' 剩余时间: {biliclear.waitRiskControl_TimeRemaining:.2f}s' if biliclear.waitingRiskControl else ''}",
+            text = f"B站API风控中: {biliclear.waitingRiskControl}{f" 剩余时间: {biliclear.waitRiskControl_TimeRemaining:.2f}s" if biliclear.waitingRiskControl else ""}",
             font = f"{(w + h) / 125}px BiliClear_UIFont",
             textAlign = "left",
             textBaseline = "top",
-            fillStyle = f"#{'44CC44' if not biliclear.waitingRiskControl else 'CC4444'}EE",
+            fillStyle = f"#{"44CC44" if not biliclear.waitingRiskControl else "CC4444"}EE",
             wait_execute = True
         )
         
@@ -239,7 +239,7 @@ root.move(int(root.winfo_screenwidth() / 2 - (w + dw_legacy) / webdpr / 2), int(
 
 with open("./res/ChillRoundGothic_Normal.otf", "rb") as f:
     root.reg_res(f.read(), "BiliClear_UIFont")
-root.run_js_code(f"loadFont('BiliClear_UIFont', \"{root.get_resource_path('BiliClear_UIFont')}\");")
+root.run_js_code(f"loadFont('BiliClear_UIFont', \"{root.get_resource_path("BiliClear_UIFont")}\");")
 while not root.run_js_code("font_loaded;"):
     time.sleep(0.1)
 

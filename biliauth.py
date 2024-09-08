@@ -23,14 +23,14 @@ def bilibiliAuth() -> str:
     print("\n登录成功请按回车键...", end="")
     syscmds.pause()
     result_cookie = requests.get(
-        'https://passport.bilibili.com/x/passport-login/web/qrcode/poll',
+        "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
         params = params,
         headers = headers
     )
     if result_cookie.json()["data"]["code"] == 0:
         cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
         print("\n获取cookie成功")
-        return "; ".join([f'{key}={value}' for key, value in cookie_dict.items()])
+        return "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
     print("\n获取cookie失败:", result_cookie.json()["data"]["message"], "\n")
     time.sleep(0.5)
     return bilibiliAuth()
