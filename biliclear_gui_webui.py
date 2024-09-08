@@ -211,6 +211,10 @@ def addDesignateVideo():
     else:
         root.run_js_code("alert('输入有误, 请重新输入');")
 
+def resize(nw: int, nh: int):
+    global w, h
+    w, h = nw, nh
+
 designateVideos = []
 
 root = webcvapis.WebCanvas(
@@ -218,11 +222,11 @@ root = webcvapis.WebCanvas(
     x = 0, y = 0,
     title = "BiliClear GUI",
     debug = "--debug" in sys.argv,
-    resizable = False,
+    frameless = "--frameless" in sys.argv
 )
     
 webdpr = root.run_js_code("window.devicePixelRatio;")
-
+    
 w, h = int(root.winfo_screenwidth() * 0.65), int(root.winfo_screenheight() * 0.65)
 root.resize(w, h)
 w_legacy, h_legacy = root.winfo_legacywindowwidth(), root.winfo_legacywindowheight()
@@ -251,7 +255,11 @@ root.shutdown_fileserver()
 root.jsapi.set_attr("addDesignateVideo", addDesignateVideo)
 root.run_js_code("_addDesignateVideo = (e) => {if (e.ctrlKey && !e.repeat && e.key.toLowerCase() == 'i') pywebview.api.call_attr('addDesignateVideo');};")
 root.run_js_code("window.addEventListener('keydown', _addDesignateVideo);")
+root.reg_event("resized", resize)
 
+if "--window-host" in sys.argv:
+    windll.user32.SetParent(root.winfo_hwnd(), eval(sys.argv[sys.argv.index("--window-host") + 1]))
+    
 Thread(target=worker, daemon=True).start()
 Thread(target=render, daemon=True).start()
 root.loop_to_close()

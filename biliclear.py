@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 from email.header import Header
 from email.mime.text import MIMEText
-from getpass import getpass
 from os import chdir
 from os.path import exists, dirname, abspath
 
@@ -19,6 +18,7 @@ import pyzbar.pyzbar as pyzbar
 import biliauth
 import gpt
 import syscmds
+from compatible_getpass import getpass
 
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[
     0].mro() else sys.__excepthook__(*args)
