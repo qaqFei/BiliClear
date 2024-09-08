@@ -13,7 +13,7 @@ def worker():
             while designateVideos:
                 biliclear.checkVideo(designateVideos.pop())
             biliclear.checkNewVideos()
-        except StopAsyncIteration as e:
+        except KeyError as e:
             print("错误", repr(e))
             if isinstance(e, json.JSONDecodeError):
                 biliclear.waitRiskControl(False)
@@ -64,7 +64,7 @@ def render():
         root.create_text(
             w * 0.02,
             h * 0.16,
-            text = f"违规评论: {biliclear.pornReplyCount}",
+            text = f"违规评论: {biliclear.violationsReplyCount}",
             font = f"{(w + h) / 125}px BiliClear_UIFont",
             textAlign = "left",
             textBaseline = "top",
@@ -72,7 +72,7 @@ def render():
             wait_execute = True
         )
         
-        replyPornRate = (biliclear.pornReplyCount / biliclear.replyCount * 100) if biliclear.replyCount != 0 else 0.0
+        replyPornRate = (biliclear.violationsReplyCount / biliclear.replyCount * 100) if biliclear.replyCount != 0 else 0.0
         root.create_text(
             w * 0.02,
             h * 0.19,
@@ -205,8 +205,11 @@ def getListItemAnimationDy(lst: list, index: int, atime: float):
 
 def addDesignateVideo():
     bvid = root.run_js_code("prompt('请输入BV号: ');")
-    designateVideos.append(bvid)
-    root.run_js_code(f"alert('已添加BV号: {bvid}, 请耐心等待本轮推荐视频检查完毕');")
+    if isinstance(bvid, str) and bvid.startswith("BV"):
+        designateVideos.append(bvid)
+        root.run_js_code(f"alert('已添加BV号: {bvid}, 请耐心等待本轮推荐视频检查完毕');")
+    else:
+        root.run_js_code("alert('输入有误, 请重新输入');")
 
 designateVideos = []
 

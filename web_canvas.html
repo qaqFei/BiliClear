@@ -74,7 +74,7 @@
     function update2233() {
         img2233.style.top = `${Math.random() * 100}%`;
         img2233.style.left = `${Math.random() * 50 + 50}%`;
-        img2233.style.rotate = `${Math.random() * 360 * 6}deg`;
+        img2233.style.rotate = `${Math.random() * 360 * 2}deg`;
     }
 
     function load2233(url) {
@@ -84,7 +84,7 @@
         img2233.onload = () => {
             img2233.className = "img-2233";
             document.body.appendChild(img2233);
-            img2233.addEventListener("mousemove", update2233);
+            img2233.addEventListener("mousedown", update2233);
             loaded2233 = true;
         }
     }

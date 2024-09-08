@@ -281,12 +281,12 @@ class MainWindow(QWidget):
         """生成统计文本"""
         violation_rate = 0
         if biliclear.replyCount > 0:
-            violation_rate = (biliclear.pornReplyCount / biliclear.replyCount) * 100
+            violation_rate = (biliclear.violationsReplyCount / biliclear.replyCount) * 100
 
         return (f"BiliClear 数据统计\n"
                 f"已检查视频: {biliclear.videoCount}\n"
                 f"已检查评论: {biliclear.replyCount}\n"
-                f"违规评论: {biliclear.pornReplyCount}\n"
+                f"违规评论: {biliclear.violationsReplyCount}\n"
                 f"评论违规率: {violation_rate:.5f}%\n"
                 f"B站API风控中: {biliclear.waitingRiskControl}")
 
@@ -439,7 +439,7 @@ class MainWindow(QWidget):
         """更新饼图"""
         self.ax.clear()
 
-        data = [biliclear.replyCount - biliclear.pornReplyCount, biliclear.pornReplyCount]
+        data = [biliclear.replyCount - biliclear.violationsReplyCount, biliclear.violationsReplyCount]
         labels = ['正常', '违规']
 
         self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)

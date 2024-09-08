@@ -14,18 +14,17 @@ from os.path import exists, dirname, abspath
 import cv2
 import numpy as np
 import requests
+import easyocr
 
 import biliauth
 import gpt
 import syscmds
 
-sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[
-    0].mro() else sys.__excepthook__(*args)
+sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
-
 
 def saveConfig():
     with open("./config.json", "w", encoding="utf-8") as f:
@@ -46,7 +45,6 @@ def saveConfig():
             "enable_email": enable_email,
             "enable_check_lv2avatarat": enable_check_lv2avatarat
         }, indent=4, ensure_ascii=False))
-
 
 def loadConfig():
     global sender_email, sender_password
@@ -74,14 +72,14 @@ def loadConfig():
     if reply_limit <= 20:
         reply_limit = 100
 
-
 def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
     except IndexError:
         print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
+        print("请按回车键退出...")
+        syscmds.pause()
         raise SystemExit
-
 
 def checkSmtpPassword():
     try:
@@ -92,13 +90,11 @@ def checkSmtpPassword():
     except smtplib.SMTPAuthenticationError:
         return False
 
-
 def getCookieFromUser():
     if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
         return getpass("Bilibili cookie: ")
     else:
         return biliauth.bilibiliAuth()
-
 
 def checkCookie():
     result = requests.get(
@@ -109,7 +105,6 @@ def checkCookie():
         }
     ).json()
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
-
 
 if not exists("./config.json"):
     sender_email = input("Report sender email: ")
@@ -183,12 +178,24 @@ with open("./res/rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
+easyocr_reader = easyocr.Reader(["en", "ch_sim"])
 
 loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
 print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
 time.sleep(loaded_sleep_time)
 syscmds.clearScreen()
 
+def _btyes2cv2im(btyes):
+    return cv2.imdecode(np.frombuffer(btyes, np.uint8), cv2.IMREAD_COLOR)
+
+def _img_face(img):
+    return not isinstance(
+        face_detector.detectMultiScale(
+            cv2.cvtColor(img, cv2.COLOR_BGR2GRAY),
+            scaleFactor=1.2, minNeighbors=1
+        ),
+        tuple
+    )
 
 def getVideos():
     "获取推荐视频列表"
@@ -197,7 +204,6 @@ def getVideos():
         for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
         if i.get("can_play", 0)
     ]
-
 
 def getReplys(avid: str | int):
     "获取评论"
@@ -219,7 +225,6 @@ def getReplys(avid: str | int):
         page += 1
     return replies
 
-
 def isPorn(text: str):
     "判断评论是否为色情内容 (使用规则, rules.txt)"
     for rule in rules:
@@ -227,9 +232,8 @@ def isPorn(text: str):
             return True, rule
     return False, None
 
-
-def req_bili_report_api(data: dict, rule: str):
-    "调用B站举报API"
+def reqBiliReportReply(data: dict, rule: str):
+    "调用B站举报评论API"
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
         headers=headers,
@@ -255,10 +259,9 @@ def req_bili_report_api(data: dict, rule: str):
     elif result_code == 12019:
         print("举报过于频繁, 等待60s")
         time.sleep(60)
-        return req_bili_report_api(data, rule)
+        return reqBiliReportReply(data, rule)
 
-
-def report(data: dict, r: str):
+def reportReply(data: dict, r: str):
     "举报评论"
     report_text = f"""
 违规用户UID：{data["mid"]}
@@ -288,52 +291,62 @@ def report(data: dict, r: str):
         smtp_con.quit()
 
     if bili_report_api:
-        req_bili_report_api(data, r)
+        reqBiliReportReply(data, r)
 
     print()  # next line
 
-
 def replyIsViolations(reply: dict):
     "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
+    global enable_gpt
+    
     reply_msg = reply["content"]["message"]
     isp, r = isPorn(reply_msg)
 
     if not isp and enable_gpt:
-        isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
-        print(f"调用GPT进行检测, 结果: {isp}")
+        try:
+            isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
+            print(f"调用GPT进行检测, 结果: {isp}")
+        except gpt.RateLimitError:
+            enable_gpt = False
+            saveConfig()
+            print("GPT请求达到限制, 已关闭GPT检测")
 
-    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
-        "current_level"] == 2 and "@" in reply_msg:  # lv.2
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"]["current_level"] == 2 and "@" in reply_msg:  # lv.2
         avatar_image = requests.get(
             reply["member"]["avatar"],
             headers=headers
         ).content
-        cv2_img = cv2.imdecode(np.frombuffer(avatar_image, np.uint8), cv2.IMREAD_COLOR)
-        if not isinstance(face_detector.detectMultiScale(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY), scaleFactor=1.2,
-                                                         minNeighbors=1), tuple):  # not empty
+        if _img_face(_btyes2cv2im(avatar_image)):  # not empty
             isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
         print(f"lv.2和人脸检测, 结果: {isp}")
 
     return isp, r
 
-
 def processReply(reply: dict):
-    """处理评论并举报"""
-    global replyCount, pornReplyCount, checkedReplies
+    "处理评论并举报"
+    global replyCount, violationsReplyCount, checkedReplies
 
     replyCount += 1
     isp, r = replyIsViolations(reply)
 
     if isp:
-        pornReplyCount += 1
-        report(reply, r)
+        violationsReplyCount += 1
+        reportReply(reply, r)
 
     checkedReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
     checkedReplies = checkedReplies[:1500]
     return isp, r
 
+def videoIsViolations(avid: str | int):
+    isp, r = False, None
+    
+    return isp, r
 
-def setMethod():
+def processVideo(avid: str | int):
+    "处理视频并举报"
+    isp, r = videoIsViolations(avid)
+
+def _setMethod():
     global method
     method = None
     method_choices = {
@@ -351,7 +364,6 @@ def setMethod():
         method = input("选择: ")
         syscmds.clearScreen()
 
-
 def bvid2avid(bvid: str):
     result = requests.get(
         f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
@@ -359,29 +371,27 @@ def bvid2avid(bvid: str):
     ).json()
     return result["data"]["aid"]
 
-
 videoCount = 0
 replyCount = 0
-pornReplyCount = 0
+violationsReplyCount = 0
 waitRiskControl_TimeRemaining = float("nan")
 waitingRiskControl = False
 checkedVideos = []
 checkedReplies = []
 
-
 def _checkVideo(avid: str | int):
+    processVideo(avid)
     for reply in getReplys(avid):
         processReply(reply)
 
-
 def checkNewVideos():
-    global videoCount, replyCount, pornReplyCount, checkedVideos
+    global videoCount, replyCount, violationsReplyCount, checkedVideos
 
     print(f"{"\n" if videoCount != 0 else ""}开始检查新一轮推荐视频...")
     print(f"已检查视频: {videoCount}")
     print(f"已检查评论: {replyCount}")
     print(
-        f"已举报评论: {pornReplyCount} 评论违规率: {((pornReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
+        f"已举报评论: {violationsReplyCount} 评论违规率: {((violationsReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
     print()  # next line
 
     for avid in getVideos():
@@ -392,7 +402,6 @@ def checkNewVideos():
         checkedVideos = checkedVideos[:1500]
     time.sleep(1.25)
 
-
 def checkVideo(bvid: str):
     global videoCount, checkedVideos
 
@@ -402,7 +411,6 @@ def checkVideo(bvid: str):
     checkedVideos.insert(0, (avid, time.time()))
     checkedVideos = checkedVideos[:1500]
     time.sleep(1.25)
-
 
 def waitRiskControl(output: bool = True):
     global waitRiskControl_TimeRemaining, waitingRiskControl
@@ -421,9 +429,8 @@ def waitRiskControl(output: bool = True):
             time.sleep(0.005)
     waitingRiskControl = False
 
-
 if __name__ == "__main__":
-    setMethod()
+    _setMethod()
     while True:
         try:
             match method:
