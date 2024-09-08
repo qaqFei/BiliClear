@@ -23,7 +23,7 @@
    - **WebUI仅限Windows可用**
    - 使用以下命令启动BiliClear
    ```bash
-   #启动 QT GUI (功能更完善)
+   #启动 QT GUI (功能更完善，现已支持重定向控制台日志)
    python ./biliclear_gui_qt.py
    #启动 WebUI (适配更及时)
    python ./biliclear_gui_webui.py
