@@ -29,7 +29,7 @@
 "零零" in text and "喜欢吃" in text
 "停一停" in text and "沿途" in text and "吧" in text and "的" in text and "海洋" in text
 "停一停" in text and "沿途" in text and "吧" in text and "的" in text and "一次" in text
-"好看" in text and "燃烧" in text and "哦" in text and ("！" in text or "!" in text)
+"好看" in text and "燃烧" in text and "哦" in text and "！" in text
 "开心一次" in text and "是" in text and "流转" in text and "不经意" in text
 "都是" in text and "]" in text and "刚才" in text and "好大" in text
 "友情提示" in text and "刷视频" in text
@@ -39,4 +39,4 @@
 "isgou.cn" in text
 "出汗" in text and "新动作" in text
 "QWAH.cznnew.cn" in text
-"V" in text and "扫" in text or "v" in text and "扫" in text
+"V" in text and "扫" in text

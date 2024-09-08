@@ -176,3 +176,9 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python
 
 config.json
+
+### Python Editors ###
+# Visual Studio Code
+.vscode/
+# PyCharm
+.idea/

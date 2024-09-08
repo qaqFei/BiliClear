@@ -18,6 +18,7 @@ import numpy as np
 import biliauth
 import syscmds
 import gpt
+from utils import VarietyString
 
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
@@ -211,6 +212,7 @@ def getReplys(avid: str | int):
 
 def isPorn(text: str):
     "判断评论是否为色情内容 (使用规则, rules.txt)"
+    text = VarietyString(text)
     for rule in rules:
         if eval(rule):  # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
             return True, rule
