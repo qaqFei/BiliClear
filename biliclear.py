@@ -312,8 +312,7 @@ def replyIsViolations(reply: dict):
             saveConfig()
             print("GPT请求达到限制, 已关闭GPT检测")
 
-    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
-        "current_level"] == 2 and "@" in reply_msg:  # lv.2
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"]["current_level"] == 2 and "@" in reply_msg:  # lv.2
         avatar_image = requests.get(
             reply["member"]["avatar"],
             headers=headers
