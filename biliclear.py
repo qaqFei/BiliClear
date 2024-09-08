@@ -181,11 +181,11 @@ except ssl.SSLError:
 
 text_checker = checker.Checker()
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
-
-loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
-print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
-time.sleep(loaded_sleep_time)
-syscmds.clearScreen()
+if __name__ == "__main__":
+    loaded_sleep_time = 3.0
+    print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
+    time.sleep(loaded_sleep_time)
+    syscmds.clearScreen()
 
 def _btyes2cv2im(btyes):
     return cv2.imdecode(np.frombuffer(btyes, np.uint8), cv2.IMREAD_COLOR)
