@@ -148,6 +148,7 @@ if not exists("./config.json"):
     gpt.gpt_model = "gpt-4o-mini"
     enable_email = True
     enable_check_lv2avatarat = False
+    enable_check_replyimage = False
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -166,8 +167,8 @@ if not checkCookie():
 
 try:
     saveConfig()
-except Exception:
-    print("警告: 保存config.json失败")
+except Exception as e:
+    print("警告: 保存config.json失败, 错误:", e)
 
 try:
     if enable_email and not checkSmtpPassword():
