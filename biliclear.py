@@ -329,8 +329,10 @@ def replyIsViolations(reply: dict):
     if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
         try:
             images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
-            if any([bool(pyzbar.decode(np.ndarray(_btyes2cv2im(image)))) for image in images]):
-                isp, r = True, "lv.2, 检测到评论中包含二维码, 可疑"
+            have_qrcode = any([bool(pyzbar.decode(np.ndarray(_btyes2cv2im(image)))) for image in images])
+            have_face = any([(_img_face(_btyes2cv2im(image))) for image in images])
+            if have_qrcode or have_face:
+                isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
             print(f"lv.2和二维码检测, 结果: {isp}")
         except Exception as e:
             print("警告: 二维码检测时发生错误, 已跳过", repr(e))
