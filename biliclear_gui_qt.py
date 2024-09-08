@@ -14,7 +14,7 @@ print("""
  ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
 
 正在导入库，请稍等。。。""")
-
+import re
 import sys
 import threading
 import queue
@@ -174,20 +174,6 @@ class CommentProcessorThread(threading.Thread):
                 isp, rule = biliclear.processReply(reply)  # 处理评论
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
-
-
-import sys
-import queue
-import re
-from PyQt6.QtCore import Qt, QTimer, QTime, QUrl
-from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
-                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QComboBox, QMessageBox)
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-
-import biliclear  # 引入主程序中的功能
-import gpt  # 引入 GPT 相关功能
 
 
 class MainWindow(QWidget):
@@ -547,6 +533,7 @@ class MainWindow(QWidget):
     def closeEvent(self, event):
         """关闭事件处理，自动强制退出所有子线程"""
         if self.processor_thread and self.processor_thread.is_alive():
+            self.processor_thread.stop()  # 停止线程
             self.processor_thread.join(timeout=1)  # 等待子线程结束
 
         event.accept()  # 允许窗口关闭
