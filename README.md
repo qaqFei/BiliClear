@@ -1,7 +1,7 @@
 ![BiliClear](https://socialify.git.ci/qaqFei/BiliClear/image?description=1&descriptionEditable=Report%20violating%20Bilibili%20users%20in%20batches.&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Charlie%20Brown&pulls=1&stargazers=1&theme=Auto)
 # BiliClear 🎯
 - 这是一个可以批量举报B站`麦片评论`的程序 🚨
-- **需要 Python 版本 >= `3.10`** 🐍
+- **需要 Python 版本 >= `3.12`** 🐍
 
 ## 使用方法 💡
 1. **源码使用：**
