@@ -26,13 +26,14 @@
         position: absolute;
         width: 10%;
         z-index: 2;
-        transition: all 0.35s ease-out;
+        transition: all 0.95s ease-in-out, scale 0.35s ease-out, filter 0.35s ease-in-out;
         top: 50%;
         left: 75%;
     }
 
     .img-2233:hover {
-        scale: 1.5;
+        scale: 1.35;
+        filter: drop-shadow(0 0 0.1em #ffffffee) hue-rotate(-360deg) saturate(1.5);
     }
 </style>
 
@@ -74,7 +75,7 @@
     function update2233() {
         img2233.style.top = `${Math.random() * 100}%`;
         img2233.style.left = `${Math.random() * 50 + 50}%`;
-        img2233.style.rotate = `${Math.random() * 360 * 2}deg`;
+        img2233.style.rotate = `${Math.random() * 360 * 4}deg`;
     }
 
     function load2233(url) {
