@@ -14,7 +14,7 @@ def get_today_gpt_usage():
 
     try:
         response = requests.get(
-            f"https://api.openai.com/v1/usage?start={start_time}&end={end_time}",
+            f"{openai.api_base}/usage?start={start_time}&end={end_time}",
             headers = {
                 "Authorization": f"Bearer {openai.api_key}",
             }

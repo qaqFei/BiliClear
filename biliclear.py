@@ -335,7 +335,8 @@ def replyIsViolations(reply: dict):
 
 def processReply(reply: dict):
     "处理评论并举报"
-    global replyCount, violationsReplyCount, checkedReplies
+    global replyCount, violationsReplyCount
+    global checkedReplies, violationsReplies
 
     replyCount += 1
     isp, r = replyIsViolations(reply)
@@ -343,9 +344,11 @@ def processReply(reply: dict):
     if isp:
         violationsReplyCount += 1
         reportReply(reply, r)
+        violationsReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
 
     checkedReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
     checkedReplies = checkedReplies[:1500]
+    violationsReplies = violationsReplies[:1500]
     return isp, r
 
 def videoIsViolations(avid: str | int):
@@ -389,6 +392,7 @@ waitRiskControl_TimeRemaining = float("nan")
 waitingRiskControl = False
 checkedVideos = []
 checkedReplies = []
+violationsReplies = []
 
 def _checkVideo(avid: str | int):
     processVideo(avid)
