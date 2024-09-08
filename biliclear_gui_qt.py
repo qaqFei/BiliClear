@@ -140,12 +140,21 @@ class CommentProcessorThread(threading.Thread):
         self.enable_gpt = enable_gpt
         self.video_counter = 0
         self.parent = parent
+        self._stop_event = threading.Event()  # 停止标志位
+
+    def stop(self):
+        """设置停止标志位"""
+        self._stop_event.set()
 
     def run(self):
+        """线程执行函数"""
         if self.avids is None:
             self.avids = biliclear.getVideos()
 
         for avid in self.avids:
+            if self._stop_event.is_set():  # 检查停止标志位
+                return  # 安全退出
+
             if self.video_counter >= 10:
                 self.log_queue.put("检查了 10 个视频，自动启动新的任务...")
                 self.parent.auto_get_videos()  # 调用主窗口的自动获取方法
@@ -159,13 +168,26 @@ class CommentProcessorThread(threading.Thread):
             self.parent.update_current_avid(avid)  # 更新当前 avid 显示
 
             for reply in replies:
+                if self._stop_event.is_set():  # 检查停止标志位
+                    return  # 安全退出
+
                 isp, rule = biliclear.processReply(reply)  # 处理评论
                 self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
-        # 如果线程处理完毕但视频数量不足 10，自动启动新任务
-        if self.video_counter < 10:
-            self.parent.auto_get_videos()
+
+import sys
+import queue
+import re
+from PyQt6.QtCore import Qt, QTimer, QTime, QUrl
+from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
+                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QComboBox, QMessageBox)
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+import biliclear  # 引入主程序中的功能
+import gpt  # 引入 GPT 相关功能
 
 
 class MainWindow(QWidget):
@@ -183,10 +205,17 @@ class MainWindow(QWidget):
         self.log_queue = queue.Queue()
 
         self.last_log_time = QTime.currentTime()
-
         self.violation_reasons = {}  # 违规原因统计字典
+        self.is_paused = False  # 用于暂停自动任务重启的标志
+        self.current_bvid = None
+
+        self.processor_thread = None
 
         self.initUI()
+
+        # 将标准输出和错误输出重定向到日志窗口
+        sys.stdout = Stream(self.log_area)
+        sys.stderr = Stream(self.log_area)
 
         # 定时器，每 100ms 检查一次队列的更新，更新 UI 和日志
         self.timer = self.startTimer(100)
@@ -200,13 +229,6 @@ class MainWindow(QWidget):
         self.pie_timer = QTimer()
         self.pie_timer.timeout.connect(self.update_token_usage)
         self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
-
-        self.current_bvid = None
-        self.processor_thread = None
-
-        # 将标准输出和错误输出重定向到日志窗口
-        sys.stdout = Stream(self.log_area)
-        sys.stderr = Stream(self.log_area)
 
     def initUI(self):
         self.setWindowTitle('Bilibili 自动评论监控')
@@ -461,9 +483,29 @@ class MainWindow(QWidget):
 
     def check_for_timeout(self):
         """检查是否在 15 秒内无日志输出，超时则自动开始新任务"""
-        if self.last_log_time.secsTo(QTime.currentTime()) > 15:
+        if self.is_paused:
+            return  # 如果当前任务暂停，不执行自动重启逻辑
+
+        # 检查日志中是否有 "*等待..s" 模式的内容
+        log_text = self.log_area.toPlainText()
+        wait_match = re.search(r"\*等待(\d+)s", log_text)
+
+        if wait_match:
+            wait_time = int(wait_match.group(1))  # 提取等待的秒数
+            self.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
+            self.is_paused = True
+
+            # 创建一个定时器，`wait_time` 秒后恢复自动任务重启
+            QTimer.singleShot(wait_time * 1000, self.resume_auto_restart)
+
+        elif self.last_log_time.secsTo(QTime.currentTime()) > 15:
             self.log_message("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
+
+    def resume_auto_restart(self):
+        """恢复自动任务重启"""
+        self.is_paused = False
+        self.log_message("等待结束，恢复自动任务重启。")
 
     def update_token_usage(self):
         """更新GPT Token使用情况"""
@@ -501,6 +543,15 @@ class MainWindow(QWidget):
         """显示设置对话框"""
         dialog = SettingsDialog(self.config, self)
         dialog.exec()
+
+    def closeEvent(self, event):
+        """关闭事件处理，自动强制退出所有子线程"""
+        if self.processor_thread and self.processor_thread.is_alive():
+            self.processor_thread.join(timeout=1)  # 等待子线程结束
+
+        event.accept()  # 允许窗口关闭
+
+
 class Stream:
     def __init__(self, log_area):
         self.log_area = log_area
