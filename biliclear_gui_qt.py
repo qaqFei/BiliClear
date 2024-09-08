@@ -447,7 +447,7 @@ class MainWindow(QWidget):
     def update_token_usage(self):
         """更新GPT Token使用情况"""
         try:
-            token_count = gpt.get_today_gpt_usage(self.config['gpt_apikey'])
+            token_count = gpt.get_today_gpt_usage()
             self.token_label.setText(f"今日已花费 GPT Tokens: {token_count}")
         except Exception as e:
             self.log_message(f"更新GPT Token失败: {str(e)}")
