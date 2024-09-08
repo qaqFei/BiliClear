@@ -24,7 +24,7 @@ class Checker:
         
         for item in self.rules_exact:
             if isinstance(item, list):
-                if all([(keyword not in text.replace("$-not ", "")) if keyword.startswith("$-not ", "") else (keyword in text) for keyword in item]):
+                if all([(keyword not in text.replace("$-not ", "")) if keyword.startswith("$-not ") else (keyword in text) for keyword in item]):
                     return True, str(item)
             elif isinstance(item, str):
                 if re.search(item.lower(), text):
@@ -39,7 +39,7 @@ class Checker:
         
         for item in self.rules_exact:
             if isinstance(item, list):
-                if all([(keyword not in text.replace("$-not ", "")) if keyword.startswith("$-not ", "") else (keyword in text) for keyword in item]):
+                if all([(keyword not in text.replace("$-not ", "")) if keyword.startswith("$-not ") else (keyword in text) for keyword in item]):
                     match_scores.append(1.0)
             elif isinstance(item, str):
                 matches = re.findall(item.lower(), text)
