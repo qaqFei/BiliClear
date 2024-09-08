@@ -18,7 +18,6 @@ import pyzbar.pyzbar as pyzbar
 import biliauth
 import gpt
 import syscmds
-import checker
 from compatible_getpass import getpass
 
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
@@ -137,7 +136,7 @@ if not exists("./config.json"):
 
     print("\nSMTP 服务器:")
     for k, v in smtps.items():
-        print(f"    {k}: server = {v["server"]}, port = {v["port"]}")
+        print(f"    {k}: server = {v['server']}, port = {v['port']}")
 
     smtp_server = input("\nSMTP server: ")
     smtp_port = int(input("SMTP port: "))
@@ -178,11 +177,24 @@ except ssl.SSLError:
     syscmds.pause()
     raise SystemExit
 
-text_checker = checker.Checker()
-face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
+with open("./res/rules.txt", "r", encoding="utf-8") as f:
+    rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
+face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
+version = 0.2
 loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
 print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
+url = 'https://raw.githubusercontent.com/qaqFei/BiliClear/main/version.txt'
+try:
+    response = requests.get(url)
+    response.raise_for_status()  # 如果响应状态码不是200，则抛出异常
+    version_number = response.text.strip()  # 去除首尾空白字符
+    if version == version_number:
+        print("当前为最新版本")
+    else:
+        print(f"请更新最新版本 版本号: {[version_number]}")
+except requests.exceptions.RequestException as e:
+    print(f"获取版本号时发生错误: {e}")
 time.sleep(loaded_sleep_time)
 syscmds.clearScreen()
 
@@ -227,8 +239,11 @@ def getReplys(avid: str | int):
     return replies
 
 def isPorn(text: str):
-    "判断评论是否为色情内容 (使用规则, rules.yaml)"
-    return text_checker.check(text)
+    "判断评论是否为色情内容 (使用规则, rules.txt)"
+    for rule in rules:
+        if eval(rule):  # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
+            return True, rule
+    return False, None
 
 def reqBiliReportReply(data: dict, rule: str | None):
     "调用B站举报评论API"
@@ -259,39 +274,43 @@ def reqBiliReportReply(data: dict, rule: str | None):
         time.sleep(60)
         return reqBiliReportReply(data, rule)
 
-def reportReply(data: dict, r: str | None):
-    "举报评论"
-    report_text = f"""
-违规用户UID：{data["mid"]}
-违规信息发布形式：评论, (动态)
-问题描述：破坏了B站和互联网的和谐环境
-诉求：移除违规内容，封禁账号
+def reportReply(data: dict, r: str):
+    "举报评论 @误判率极高,优化@误判"
+    if "@" in data.get("content", {}).get("message", "") and data.get("content", {}).get("at_name_to_mid"):
+        print("\n误判评论:", repr(data["content"]["message"]))
+        print("正常@语句，误判pass")
+    else:
+        report_text = f"""
+        违规用户UID：{data["mid"]}
+        违规信息发布形式：评论, (动态)
+        问题描述：破坏了B站和互联网的和谐环境
+        诉求：移除违规内容，封禁账号
 
-评论数据内容(B站API返回, x/v2/reply):
-`
-{json.dumps(data, ensure_ascii=False, indent=4)}
-`
+        评论数据内容(B站API返回, x/v2/reply):
+        `
+        {json.dumps(data, ensure_ascii=False, indent=4)}
+        `
 
-(此举报信息自动生成, 可能会存在误报)
-评论内容匹配到的规则: {r}
-"""
-    print("\n违规评论:", repr(data["content"]["message"]))
-    print("规则:", r)
+        (此举报信息自动生成, 可能会存在误报)
+        评论内容匹配到的规则: {r}
+        """
+        print("\n违规评论:", repr(data["content"]["message"]))
+        print("规则:", r)
 
-    if enable_email:
-        msg = MIMEText(report_text, "plain", "utf-8")
-        msg["From"] = Header("Report", "utf-8")
-        msg["To"] = Header("Bilibili", "utf-8")
-        msg["Subject"] = Header("违规内容举报", "utf-8")
-        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        smtp_con.login(sender_email, sender_password)
-        smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
-        smtp_con.quit()
+        if enable_email:
+            msg = MIMEText(report_text, "plain", "utf-8")
+            msg["From"] = Header("Report", "utf-8")
+            msg["To"] = Header("Bilibili", "utf-8")
+            msg["Subject"] = Header("违规内容举报", "utf-8")
+            smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            smtp_con.login(sender_email, sender_password)
+            smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
+            smtp_con.quit()
 
-    if bili_report_api:
-        reqBiliReportReply(data, r)
+        if bili_report_api:
+            reqBiliReportReply(data, r)
 
-    print()  # next line
+        print()  # next line
 
 def replyIsViolations(reply: dict):
     "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
@@ -300,7 +319,7 @@ def replyIsViolations(reply: dict):
     reply_msg = reply["content"]["message"]
     isp, r = isPorn(reply_msg)
 
-    if "doge" in reply_msg:
+    if "[doge]" in reply_msg:
         return False, None
 
     if not isp and enable_gpt:
@@ -312,7 +331,8 @@ def replyIsViolations(reply: dict):
             saveConfig()
             print("GPT请求达到限制, 已关闭GPT检测")
 
-    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"]["current_level"] == 2 and "@" in reply_msg:  # lv.2
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
+        "current_level"] == 2 and "@" in reply_msg:  # lv.2
         avatar_image = requests.get(
             reply["member"]["avatar"],
             headers=headers
@@ -405,7 +425,7 @@ def _checkVideo(avid: str | int):
 def checkNewVideos():
     global videoCount, replyCount, violationsReplyCount, checkedVideos
 
-    print("".join([("\n" if videoCount != 0 else ""), "开始检查新一轮推荐视频..."]))
+    print(''.join([('\n' if videoCount != 0 else ''), '开始检查新一轮推荐视频...']))
     print(f"已检查视频: {videoCount}")
     print(f"已检查评论: {replyCount}")
     print(
@@ -413,7 +433,7 @@ def checkNewVideos():
     print()  # next line
 
     for avid in getVideos():
-        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
