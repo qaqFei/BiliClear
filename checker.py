@@ -77,6 +77,7 @@ class Checker:
             return avg_score >= threshold
         
         return False
+    
     def V3(self, text: str, threshold: float = 0.7) -> bool:
         """
         检查字符串中是否包含违禁词，并根据相似程度进行判断。
