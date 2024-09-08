@@ -300,7 +300,7 @@ def replyIsViolations(reply: dict):
     reply_msg = reply["content"]["message"]
     isp, r = isPorn(reply_msg)
 
-    if "[doge]" in reply_msg:
+    if "doge" in reply_msg:
         return False, None
 
     if not isp and enable_gpt:
