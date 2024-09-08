@@ -247,7 +247,6 @@ root.reg_res(open("./res/2233.gif", "rb").read(), "img2233")
 img2233path = root.get_resource_path("img2233")
 root.run_js_code(f"load2233(('{img2233path}'));")
 while not root.run_js_code("loaded2233"):
-    print("loading 2233.gif...")
     time.sleep(0.1)
     
 root.shutdown_fileserver()
