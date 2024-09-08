@@ -5,14 +5,14 @@ print("""
     ██║▄▄ ██║   ██║   ██║   ██║██║    ██╔══██╗  ╚██╔╝     
     ╚██████╔╝   ██║   ╚██████╔╝██║    ██████╔╝   ██║      
      ╚══▀▀═╝    ╚═╝    ╚═════╝ ╚═╝    ╚═════╝    ╚═╝      
-                                                          
+
  ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗
 ██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝
 ██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗  
 ██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝  
 ╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║     
  ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
-                                                          
+
 正在导入库，请稍等。。。""")
 
 import sys
@@ -35,9 +35,10 @@ import gpt  # 引入 GPT 相关功能
 
 # 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
-plt.rcParams['axes.unicode_minus'] = False    # 解决负号显示问题
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 print("正在加载函数，请稍等。。。")
 CONFIG_FILE = './config.json'
+
 
 def load_config():
     """加载配置文件"""
@@ -47,10 +48,12 @@ def load_config():
     else:
         return None
 
+
 def save_config(config):
     """保存配置文件"""
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
+
 
 class SettingsDialog(QDialog):
     """配置对话框，允许用户设置 GPT 和其他配置"""
@@ -127,6 +130,7 @@ class SettingsDialog(QDialog):
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
+
     def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
         super().__init__()
         self.avids = avids
@@ -180,6 +184,8 @@ class MainWindow(QWidget):
 
         self.last_log_time = QTime.currentTime()
 
+        self.violation_reasons = {}  # 违规原因统计字典
+
         self.initUI()
 
         # 定时器，每 100ms 检查一次队列的更新，更新 UI 和日志
@@ -197,6 +203,10 @@ class MainWindow(QWidget):
 
         self.current_bvid = None
         self.processor_thread = None
+
+        # 将标准输出和错误输出重定向到日志窗口
+        sys.stdout = Stream(self.log_area)
+        sys.stderr = Stream(self.log_area)
 
     def initUI(self):
         self.setWindowTitle('Bilibili 自动评论监控')
@@ -244,7 +254,6 @@ class MainWindow(QWidget):
         right_widget = QWidget()
         right_layout = QVBoxLayout()
 
-        # 数据统计
         self.stats_label = QLabel(self.get_stats_text())  # 显示统计信息
         right_layout.addWidget(self.stats_label)
 
@@ -254,16 +263,28 @@ class MainWindow(QWidget):
         self.current_avid_label.mousePressEvent = self.copy_avid_to_clipboard
         right_layout.addWidget(self.current_avid_label)
 
+        # GPT Token 显示
+        self.token_label = QLabel("今日已花费 GPT Tokens: 0")
+        right_layout.addWidget(self.token_label)
+
+        # 饼图类型选择
+        self.pie_chart_type_combo = QComboBox(self)
+        self.pie_chart_type_combo.addItems(["违规原因占比"])
+        self.pie_chart_type_combo.currentIndexChanged.connect(self.update_pie_chart)
+        right_layout.addWidget(self.pie_chart_type_combo)
+
+        # 饼图显示
+        self.figure = Figure()
+        self.ax = self.figure.add_subplot(111)
+        self.canvas = FigureCanvas(self.figure)
+        right_layout.addWidget(self.canvas)
+
         # 违规评论列表
         self.violation_table = QTableWidget(0, 1, self)
         self.violation_table.setHorizontalHeaderLabels(["违规评论"])
         self.violation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         right_layout.addWidget(self.violation_table)
-
-        # GPT Token 显示
-        self.token_label = QLabel("今日已花费 GPT Tokens: 0")
-        right_layout.addWidget(self.token_label)
 
         # 链接按钮
         github_btn = QPushButton('本项目Github主页')
@@ -277,12 +298,6 @@ class MainWindow(QWidget):
         api_btn = QPushButton('ChatGPT API管理页面')
         api_btn.clicked.connect(self.open_api_keys)
         right_layout.addWidget(api_btn)
-
-        # 饼图显示
-        self.figure = Figure()
-        self.ax = self.figure.add_subplot(111)
-        self.canvas = FigureCanvas(self.figure)
-        right_layout.addWidget(self.canvas)
 
         right_widget.setLayout(right_layout)
 
@@ -362,7 +377,8 @@ class MainWindow(QWidget):
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid, parent=self)
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
+                                                       parent=self)
         self.processor_thread.start()
 
     def update_current_avid(self, avid):
@@ -375,7 +391,7 @@ class MainWindow(QWidget):
         clipboard.setText(self.current_avid_label.text().split(": ")[1])
         self.log_message("Avid 已复制到剪贴板")
 
-    def add_comment_to_table(self, reply, isp):
+    def add_comment_to_table(self, reply, isp, rule):
         comment_text = reply['content']['message']
         row_position = self.comment_table.rowCount()
         self.comment_table.insertRow(row_position)
@@ -406,6 +422,11 @@ class MainWindow(QWidget):
             violation_item.setFlags(violation_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.violation_table.setItem(violation_row, 0, violation_item)
 
+            # 统计违规原因
+            if rule not in self.violation_reasons:
+                self.violation_reasons[rule] = 0
+            self.violation_reasons[rule] += 1
+
         if self.comment_table.verticalScrollBar().value() == self.comment_table.verticalScrollBar().maximum():
             self.comment_table.scrollToBottom()
 
@@ -427,7 +448,7 @@ class MainWindow(QWidget):
         try:
             while True:
                 reply, isp, rule = self.result_queue.get_nowait()
-                self.add_comment_to_table(reply, isp)
+                self.add_comment_to_table(reply, isp, rule)
         except queue.Empty:
             pass
 
@@ -453,13 +474,14 @@ class MainWindow(QWidget):
             self.log_message(f"更新GPT Token失败: {str(e)}")
 
     def update_pie_chart(self):
-        """更新饼图"""
+        """更新饼图，显示违规原因占比"""
         self.ax.clear()
 
-        data = [biliclear.replyCount - biliclear.violationsReplyCount, biliclear.violationsReplyCount]
-        labels = ['正常', '违规']
+        if self.pie_chart_type_combo.currentText() == "违规原因占比":
+            labels = list(self.violation_reasons.keys())
+            data = list(self.violation_reasons.values())
+            self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
 
-        self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
         self.ax.axis('equal')  # 保证饼图是圆形的
         self.canvas.draw()
 
@@ -479,6 +501,21 @@ class MainWindow(QWidget):
         """显示设置对话框"""
         dialog = SettingsDialog(self.config, self)
         dialog.exec()
+class Stream:
+    def __init__(self, log_area):
+        self.log_area = log_area
+
+    def write(self, message):
+        """将输出消息显示在日志窗口"""
+        if message.strip():
+            self.log_area.append(message)
+            self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+
+    def flush(self):
+        """flush 是必须实现的空方法"""
+        pass
+
+
 
 print("正在启动GUI，请稍等。。。")
 if __name__ == '__main__':

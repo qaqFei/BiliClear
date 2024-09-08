@@ -1,5 +1,5 @@
 openai~=0.28.1
-requests~=2.21.0
+requests
 opencv-python~=4.10.0.84
 numpy~=2.0.0
 pyzbar~=0.1.9
