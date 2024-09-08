@@ -1,6 +1,7 @@
 import re
 import yaml
 import unicodedata
+from Levenshtein import ratio
 
 class Checker:
     def __init__(self) -> None:
@@ -61,7 +62,7 @@ class Checker:
         
         match_scores = []
         
-        for item in self.words_v2:
+        for item in self.words:
             if isinstance(item, list):
                 all_match = all(re.search(keyword.lower(), text) for keyword in item)
                 if all_match:
@@ -70,6 +71,29 @@ class Checker:
                 matches = re.findall(item.lower(), text)
                 score = len(matches) / len(text)
                 match_scores.append(score)
+        
+        if match_scores:
+            avg_score = sum(match_scores) / len(match_scores)
+            return avg_score >= threshold
+        
+        return False
+    def V3(self, text: str, threshold: float = 0.7) -> bool:
+        """
+        检查字符串中是否包含违禁词，并根据相似程度进行判断。
+        
+        :param text: 待检查的字符串
+        :param threshold: 相似程度阈值，默认为 0.7
+        :return: 如果相似程度大于等于阈值，则返回 True；否则返回 False
+        """
+        # 规范化文本
+        text = self.normalize_text(text)
+        
+        match_scores = []
+        
+        for item in self.words_v2:
+            if isinstance(item, str):
+                similarity = ratio(item.lower(), text)
+                match_scores.append(similarity)
         
         if match_scores:
             avg_score = sum(match_scores) / len(match_scores)
