@@ -1,4 +1,4 @@
-curse_words:
+rules_exact:
   - ["动态", "好东西"]
   - ["今晚", "看我动态"]
   - ["最让我难以忘怀的是", "真的好猛"]
@@ -38,7 +38,8 @@ curse_words:
   - ["isgou.cn"]
   - ["出汗", "新动作"]
   - ["QWAH.cznnew.cn"]
-curse_words_v2:
+
+rules_elastic:
   - "点击我头像有好东西"
   - "进裙领取你想要的内容"
   - "看我主页有你想要的"

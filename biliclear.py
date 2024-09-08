@@ -18,6 +18,7 @@ import pyzbar.pyzbar as pyzbar
 import biliauth
 import gpt
 import syscmds
+import checker
 from compatible_getpass import getpass
 
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
@@ -177,9 +178,7 @@ except ssl.SSLError:
     syscmds.pause()
     raise SystemExit
 
-with open("./res/rules.txt", "r", encoding="utf-8") as f:
-    rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
-
+text_checker = checker.Checker()
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
 
 loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
@@ -228,11 +227,8 @@ def getReplys(avid: str | int):
     return replies
 
 def isPorn(text: str):
-    "判断评论是否为色情内容 (使用规则, rules.txt)"
-    for rule in rules:
-        if eval(rule):  # 一般来说, 只有rules.txt没有投毒, 就不会有安全问题
-            return True, rule
-    return False, None
+    "判断评论是否为色情内容 (使用规则, rules.yaml)"
+    return text_checker.check(text)
 
 def reqBiliReportReply(data: dict, rule: str | None):
     "调用B站举报评论API"
