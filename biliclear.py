@@ -24,7 +24,8 @@ sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if Keyboa
     0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
-if selfdir == "": selfdir = abspath(".")
+if selfdir == "":
+    selfdir = abspath(".")
 chdir(selfdir)
 
 
@@ -186,9 +187,11 @@ except ssl.SSLError:
     raise SystemExit
 
 with open("./res/rules.txt", "r", encoding="utf-8") as f:
-    rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
+    rules = list(filter(
+        lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
-face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
+face_detector = cv2.CascadeClassifier(
+    "./res/haarcascade_frontalface_default.xml")
 
 loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
 print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
@@ -248,7 +251,7 @@ def isPorn(text: str):
     return False, None
 
 
-def reqBiliReportReply(data: dict, rule: str):
+def reqBiliReportReply(data: dict, rule: str | None):
     "调用B站举报评论API"
     result = requests.post(
         "https://api.bilibili.com/x/v2/reply/report",
@@ -278,7 +281,7 @@ def reqBiliReportReply(data: dict, rule: str):
         return reqBiliReportReply(data, rule)
 
 
-def reportReply(data: dict, r: str):
+def reportReply(data: dict, r: str | None) -> None:
     "举报评论"
     report_text = f"""
 违规用户UID：{data["mid"]}
@@ -325,7 +328,8 @@ def replyIsViolations(reply: dict):
 
     if not isp and enable_gpt:
         try:
-            isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
+            isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(
+                reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
             print(f"调用GPT进行检测, 结果: {isp}")
         except gpt.RateLimitError:
             enable_gpt = False
@@ -333,7 +337,7 @@ def replyIsViolations(reply: dict):
             print("GPT请求达到限制, 已关闭GPT检测")
 
     if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
-        "current_level"] == 2 and "@" in reply_msg:  # lv.2
+            "current_level"] == 2 and "@" in reply_msg:  # lv.2
         avatar_image = requests.get(
             reply["member"]["avatar"],
             headers=headers
@@ -343,7 +347,8 @@ def replyIsViolations(reply: dict):
         print(f"lv.2和人脸检测, 结果: {isp}")
 
     if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
-        images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
+        images = [requests.get(
+            i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
         if any([bool(pyzbar.decode(np.ndarray(_btyes2cv2im(image)))) for image in images]):
             isp, r = True, "lv.2, 检测到评论中包含二维码, 可疑"
         print(f"lv.2和二维码检测, 结果: {isp}")
@@ -362,9 +367,11 @@ def processReply(reply: dict):
     if isp:
         violationsReplyCount += 1
         reportReply(reply, r)
-        violationsReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
+        violationsReplies.insert(
+            0, (reply["rpid"], reply["content"]["message"], time.time()))
 
-    checkedReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
+    checkedReplies.insert(
+        0, (reply["rpid"], reply["content"]["message"], time.time()))
     checkedReplies = checkedReplies[:1500]
     violationsReplies = violationsReplies[:1500]
     return isp, r
@@ -435,7 +442,8 @@ def checkNewVideos():
     print()  # next line
 
     for avid in getVideos():
-        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(
+            f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
@@ -463,9 +471,11 @@ def waitRiskControl(output: bool = True):
     waitingRiskControl = True
     print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
     while time.time() - stopSt < 60 * stopMinute:
-        waitRiskControl_TimeRemaining = 60 * stopMinute - (time.time() - stopSt)
+        waitRiskControl_TimeRemaining = 60 * \
+            stopMinute - (time.time() - stopSt)
         if output:
-            print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
+            print(
+                f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
             time.sleep(1.5)
         else:
             time.sleep(0.005)
