@@ -1,9 +1,8 @@
 openai~=0.28.1
-requests
-pywebview
-PyQt6
-numpy
-opencv-python
-plotly
-matplotlib
-pandas
+requests~=2.21.0
+opencv-python~=4.10.0.84
+numpy~=2.0.0
+pyzbar~=0.1.9
+pywebview~=5.2
+matplotlib~=3.9.2
+PyQt6~=6.7.1
