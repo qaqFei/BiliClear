@@ -38,10 +38,15 @@
     - `SMTP port`: 🚪 `SMTP` 服务器端口
 
 3. **处理异常：**
-   若与 `config.json` 相关的异常出现，处理方式如下：
-   - 修改 `config.json`，更新 `bilibili cookie` 或修改邮箱 `SMTP` 密钥
-   - 删除 `config.json`，重新输入参数
-   - 版本更新时建议删除 `config.json`，避免出现 `KeyError`
+   - 若与 `config.json` 相关的异常出现，处理方式如下：
+      - 修改 `config.json`，更新 `bilibili cookie` 或修改邮箱 `SMTP` 密钥
+      - 删除 `config.json`，重新输入参数
+      - 版本更新时建议删除 `config.json`，避免出现 `KeyError`
+   - 若与 QT GUI 有关：
+      - 请报告错误
+      - 目前有一个完全没有头绪的BUG：`进程已结束，退出代码为 -1073740940 (0xC0000374)` 似乎和`堆已损坏`有关，若有大佬能解决，十分感谢！
+      - 目前还有一个完全没有头绪的BUG：`进程已结束，退出代码为 -1073741819 (0xC0000005)` 似乎和`跨线程内存访问被拒绝`有关，若有大佬能解决，十分感谢！（目前找到的最相关的信息[stackoverflow](https://stackoverflow.com/questions/71966027/how-to-catch-pyqt5-exception-process-finished-with-exit-code)）
+      - 若出现这两个退出代码直接重新运行程序即可，目前没有确切的复现方法
 
 4. **Cookie 过期提示：**
    - 如果 `bilibili cookie` 过期，可能导致获取评论为空，程序不会输出任何内容。
