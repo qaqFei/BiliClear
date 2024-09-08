@@ -44,18 +44,18 @@ def _pcs_gpt_result(result: str):
 
 def gpt_porn(content):
     return _pcs_gpt_result(_gpt_replay(
-        f"Does the following text contain any adult or explicit content?\n\nText: {content}\n\nAnswer with True or False.",
-        "You are a content safety assistant."
+        content,
+        "You are a content safety assistant, Does the following text contain any adult or explicit content? Answer with True or False."
     ))
 
 def gpt_ad(content, need_at=True):
     if need_at:
         return _pcs_gpt_result(_gpt_replay(
-            f"Does the following text contain any promotional or advertisement content, including content that attempts to redirect users to websites, homepages, or encourages watching videos?\n\nText: {content}\n\nAnswer with True or False.",
-            "You are a content safety assistant."
+            content,
+            "You are a content safety assistant, Does the following text contain any promotional, advertisement, or fraudulent content, including content that attempts to redirect users to websites, homepages, solicit money (such as false donation requests or scams), or encourages watching videos? Casual mentions asking someone to watch a video (e.g., '@X come watch this') should not be considered as promotional or advertisement content. Answer with True or False."
         )) if "@" in content else False
     else:
         return _pcs_gpt_result(_gpt_replay(
-            f"Does the following text contain any promotional or advertisement content?\n\nText: {content}\n\nAnswer with True or False.",
-            "You are a content safety assistant."
+            content,
+            "You are a content safety assistant, Does the following text contain any promotional, advertisement, or fraudulent content, including content that attempts to redirect users to websites, homepages, solicit money (such as false donation requests or scams), or encourages watching videos? Casual mentions asking someone to watch a video (e.g., '@X come watch this') should not be considered as promotional or advertisement content. Answer with True or False."
         ))
