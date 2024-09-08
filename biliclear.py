@@ -14,7 +14,7 @@ from os.path import exists, dirname, abspath
 import cv2
 import numpy as np
 import requests
-import easyocr
+import pyzbar.pyzbar as pyzbar
 
 import biliauth
 import gpt
@@ -43,7 +43,8 @@ def saveConfig():
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
             "enable_email": enable_email,
-            "enable_check_lv2avatarat": enable_check_lv2avatarat
+            "enable_check_lv2avatarat": enable_check_lv2avatarat,
+            "enable_check_replyimage": enable_check_replyimage
         }, indent=4, ensure_ascii=False))
 
 def loadConfig():
@@ -52,6 +53,7 @@ def loadConfig():
     global bili_report_api, csrf
     global reply_limit, enable_gpt
     global enable_email, enable_check_lv2avatarat
+    global enable_check_replyimage
 
     config = json.load(f)
     sender_email = config["sender_email"]
@@ -69,6 +71,7 @@ def loadConfig():
     gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
     enable_email = config.get("enable_email", True)
     enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
+    enable_check_replyimage = config.get("enable_check_replyimage", False)
     if reply_limit <= 20:
         reply_limit = 100
 
@@ -178,7 +181,6 @@ with open("./res/rules.txt", "r", encoding="utf-8") as f:
     rules = list(filter(lambda x: x and "eval" not in x and "exec" not in x, f.read().splitlines()))
 
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
-easyocr_reader = easyocr.Reader(["en", "ch_sim"])
 
 loaded_sleep_time = 3.0 if __name__ == "__main__" else 0.3
 print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
@@ -301,7 +303,10 @@ def replyIsViolations(reply: dict):
     
     reply_msg = reply["content"]["message"]
     isp, r = isPorn(reply_msg)
-
+    
+    if "[doge]" in reply_msg:
+        return False, None
+        
     if not isp and enable_gpt:
         try:
             isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
@@ -319,6 +324,12 @@ def replyIsViolations(reply: dict):
         if _img_face(_btyes2cv2im(avatar_image)):  # not empty
             isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
         print(f"lv.2和人脸检测, 结果: {isp}")
+    
+    if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
+        images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
+        if any([bool(pyzbar.decode(np.ndarray(_btyes2cv2im(image)))) for image in images]):
+            isp, r = True, "lv.2, 检测到评论中包含二维码, 可疑"
+        print(f"lv.2和二维码检测, 结果: {isp}")
 
     return isp, r
 
