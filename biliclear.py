@@ -427,7 +427,7 @@ def _checkVideo(avid: str | int):
 def checkNewVideos():
     global videoCount, replyCount, violationsReplyCount, checkedVideos
 
-    print(f"{"\n" if videoCount != 0 else ""}开始检查新一轮推荐视频...")
+    print('\n' + "开始检查新一轮推荐视频..." if videoCount != 0 else "开始检查新一轮推荐视频...")
     print(f"已检查视频: {videoCount}")
     print(f"已检查评论: {replyCount}")
     print(
@@ -435,7 +435,7 @@ def checkNewVideos():
     print()  # next line
 
     for avid in getVideos():
-        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
