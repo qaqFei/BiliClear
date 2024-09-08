@@ -260,38 +260,42 @@ def reqBiliReportReply(data: dict, rule: str | None):
         return reqBiliReportReply(data, rule)
 
 def reportReply(data: dict, r: str | None):
-    "举报评论"
-    report_text = f"""
-违规用户UID：{data["mid"]}
-违规信息发布形式：评论, (动态)
-问题描述：破坏了B站和互联网的和谐环境
-诉求：移除违规内容，封禁账号
+    "举报评论 @误判率极高,优化@误判"
+    if "@" in data.get("content", {}).get("message", "") and data.get("content", {}).get("at_name_to_mid"):
+        print("\n误判评论:", repr(data["content"]["message"]))
+        print("正常@语句，误判pass")
+    else:
+        report_text = f"""
+        违规用户UID：{data["mid"]}
+        违规信息发布形式：评论, (动态)
+        问题描述：破坏了B站和互联网的和谐环境
+        诉求：移除违规内容，封禁账号
 
-评论数据内容(B站API返回, x/v2/reply):
-`
-{json.dumps(data, ensure_ascii=False, indent=4)}
-`
+        评论数据内容(B站API返回, x/v2/reply):
+        `
+        {json.dumps(data, ensure_ascii=False, indent=4)}
+        `
 
-(此举报信息自动生成, 可能会存在误报)
-评论内容匹配到的规则: {r}
-"""
-    print("\n违规评论:", repr(data["content"]["message"]))
-    print("规则:", r)
+        (此举报信息自动生成, 可能会存在误报)
+        评论内容匹配到的规则: {r}
+        """
+        print("\n违规评论:", repr(data["content"]["message"]))
+        print("规则:", r)
 
-    if enable_email:
-        msg = MIMEText(report_text, "plain", "utf-8")
-        msg["From"] = Header("Report", "utf-8")
-        msg["To"] = Header("Bilibili", "utf-8")
-        msg["Subject"] = Header("违规内容举报", "utf-8")
-        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        smtp_con.login(sender_email, sender_password)
-        smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
-        smtp_con.quit()
+        if enable_email:
+            msg = MIMEText(report_text, "plain", "utf-8")
+            msg["From"] = Header("Report", "utf-8")
+            msg["To"] = Header("Bilibili", "utf-8")
+            msg["Subject"] = Header("违规内容举报", "utf-8")
+            smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            smtp_con.login(sender_email, sender_password)
+            smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
+            smtp_con.quit()
 
-    if bili_report_api:
-        reqBiliReportReply(data, r)
+        if bili_report_api:
+            reqBiliReportReply(data, r)
 
-    print()  # next line
+        print()  # next line
 
 def replyIsViolations(reply: dict):
     "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
