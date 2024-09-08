@@ -27,7 +27,7 @@ class Checker:
                 if all([(keyword.replace("$-not ", "") not in text) if keyword.startswith("$-not ") else (keyword in text) for keyword in item]):
                     return True, str(item)
             elif isinstance(item, str):
-                if re.search(item.lower(), text):
+                if re.search(item, text):
                     return True, item
             
         return False, ""
@@ -42,7 +42,7 @@ class Checker:
                 if all([(keyword.replace("$-not ", "") not in text) if keyword.startswith("$-not ") else (keyword in text) for keyword in item]):
                     match_scores.append(1.0)
             elif isinstance(item, str):
-                matches = re.findall(item.lower(), text)
+                matches = re.findall(item, text)
                 score = len(matches) / len(text)
                 match_scores.append(score)
         
