@@ -10,6 +10,7 @@
    ![image](https://github.com/qaqFei/BiliClear/blob/main/README%20res/WebUI%E6%BC%94%E7%A4%BA.png)
    - GUI初始化（仅限WebUI或QT GUI）
    ![image](https://github.com/qaqFei/BiliClear/blob/main/README%20res/GUI%E5%88%9D%E5%A7%8B%E5%8C%96%E6%BC%94%E7%A4%BA.png)
+   - （正常情况可能不是深色模式，演示电脑改了窗口框架）
 
 ## 使用方法 💡
 0. **自动安装版本使用：**
