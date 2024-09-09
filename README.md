@@ -4,6 +4,9 @@
 - **需要 Python 版本 >= `3.12`** 🐍
 
 ## 使用方法 💡
+0. **自动安装版本使用：**
+   直接下载运行`release-0.3`中提供的自动安装程序`installer.exe`即可
+   - 其他系统请手动安装（自动安装版是为了完全不懂的小白做的）
 1. **源码使用：**
    运行以下命令进行使用前的初始化：
 
@@ -23,7 +26,7 @@
    - **WebUI仅限Windows可用**
    - 使用以下命令启动BiliClear
    ```bash
-   #启动 QT GUI (功能更完善)
+   #启动 QT GUI (功能更完善，现已支持重定向控制台日志)
    python ./biliclear_gui_qt.py
    #启动 WebUI (适配更及时)
    python ./biliclear_gui_webui.py
