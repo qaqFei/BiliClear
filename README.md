@@ -11,15 +11,15 @@
 
 - **QT GUI**
   
-  ![QT GUI 演示](https://github.com/qaqFei/BiliClear/blob/main/README%20res/QT_GUI%E6%BC%94%E7%A4%BA.png)
+  ![QT GUI 演示](https://github.com/qaqFei/BiliClear/blob/main/readme-res/QT_GUI%E6%BC%94%E7%A4%BA.png)
   
 - **WebUI**
   
-  ![WebUI 演示](https://github.com/qaqFei/BiliClear/blob/main/README%20res/WebUI%E6%BC%94%E7%A4%BA.png)
+  ![WebUI 演示](https://github.com/qaqFei/BiliClear/blob/main/readme-res/WebUI%E6%BC%94%E7%A4%BA.png)
   
 - **GUI 初始化（适用于 WebUI 和 QT GUI）**
   
-  ![GUI 初始化演示](https://github.com/qaqFei/BiliClear/blob/main/README%20res/GUI%E5%88%9D%E5%A7%8B%E5%8C%96%E6%BC%94%E7%A4%BA.png)
+  ![GUI 初始化演示](https://github.com/qaqFei/BiliClear/blob/main/readme-res/GUI%E5%88%9D%E5%A7%8B%E5%8C%96%E6%BC%94%E7%A4%BA.png)
 
   *（注意：实际使用可能不是深色模式，演示截图为修改过窗口框架的 Windows 11 系统）*
 

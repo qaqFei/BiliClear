@@ -96,14 +96,11 @@ def checkSmtpPassword():
     except smtplib.SMTPAuthenticationError:
         return False
 
-def getCookieFromUser(is_GUI):
-    if not is_GUI:
-        if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
-            return getpass("Bilibili cookie: ")
-        else:
-            return biliauth.bilibiliAuth(False)
+def getCookieFromUser():
+    if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
+        return getpass("Bilibili cookie: ")
     else:
-        return biliauth.bilibiliAuth(True)
+        return biliauth.bilibiliAuth()
 
 def checkCookie():
     result = requests.get(
@@ -130,54 +127,29 @@ if not exists("./config.json"):
         "@outlook.com": {"server": "smtp.office365.com", "port": 587},
         "@qq.com": {"server": "smtp.qq.com", "port": 465}
     }
-    if __name__ == "__main__":
-        sender_email = input("Report sender email: ")
-        sender_password = getpass("Report sender password: ")
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-            "Cookie": getCookieFromUser(False)
-        }
+    sender_email = input("Report sender email: ")
+    sender_password = getpass("Report sender password: ")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Cookie": getCookieFromUser(False)
+    }
 
-        csrf = getCsrf(headers["Cookie"])
+    csrf = getCsrf(headers["Cookie"])
 
+    print("\nSMTP 服务器:")
+    for k, v in smtps.items():
+        print(f"    {k}: server = {v["server"]}, port = {v["port"]}")
 
-
-        print("\nSMTP 服务器:")
-        for k, v in smtps.items():
-            print(f"    {k}: server = {v["server"]}, port = {v["port"]}")
-
-        smtp_server = input("\nSMTP server: ")
-        smtp_port = int(input("SMTP port: "))
-        bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
-        reply_limit = 100
-        enable_gpt = False
-        gpt.openai.api_key = ""
-        gpt.gpt_model = "gpt-4o-mini"
-        enable_email = True
-        enable_check_lv2avatarat = False
-        enable_check_replyimage = False
-    else:
-        # 调用函数并获取返回的配置信息
-        config = gui_config.get_email_config(smtps)
-
-        # 将返回的字典中的值分别赋值给对应的变量
-        sender_email = config["sender_email"]
-        sender_password = config["sender_password"]
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-            "Cookie": gui_config.getCookieFromGUI()
-        }
-        csrf = getCsrf(headers["Cookie"])
-        smtp_server = config["smtp_server"]
-        smtp_port = config["smtp_port"]
-        bili_report_api = config["bili_report_api"]
-        reply_limit = config["reply_limit"]
-        enable_gpt = config["enable_gpt"]
-        gpt.openai.api_key = config["gpt_api_key"]
-        gpt.gpt_model = config["gpt_model"]
-        enable_email = config["enable_email"]
-        enable_check_lv2avatarat = config["enable_check_lv2avatarat"]
-        enable_check_replyimage = config["enable_check_replyimage"]
+    smtp_server = input("\nSMTP server: ")
+    smtp_port = int(input("SMTP port: "))
+    bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
+    reply_limit = 100
+    enable_gpt = False
+    gpt.openai.api_key = ""
+    gpt.gpt_model = "gpt-4o-mini"
+    enable_email = True
+    enable_check_lv2avatarat = False
+    enable_check_replyimage = False
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -425,7 +397,6 @@ waitingRiskControl = False
 checkedVideos = []
 checkedReplies = []
 violationsReplies = []
-
 
 def _checkVideo(avid: str | int):
     processVideo(avid)
