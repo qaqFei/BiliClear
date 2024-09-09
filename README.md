@@ -13,7 +13,7 @@
   
   ![QT GUI 演示](https://github.com/qaqFei/BiliClear/blob/main/readme-res/QT_GUI%E6%BC%94%E7%A4%BA.png)
   
-- **WebUI**
+- **WebUI** ~~(点一下2233有惊喜哦) 你看不到!~~
   
   ![WebUI 演示](https://github.com/qaqFei/BiliClear/blob/main/readme-res/WebUI%E6%BC%94%E7%A4%BA.png)
   
