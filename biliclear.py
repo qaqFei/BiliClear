@@ -1,267 +1,118 @@
+import json
+import re  # used for rules matching
+import smtplib
+import ssl
 import sys
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, QCheckBox, QDialog
-from PyQt6.QtCore import QUrl, Qt, QTimer
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from urllib.parse import quote_plus
+import time
+from datetime import datetime
+from email.header import Header
+from email.mime.text import MIMEText
+from os import chdir, environ
+from os.path import exists, dirname, abspath
+
+import cv2
+import numpy as np
 import requests
+import pyzbar.pyzbar as pyzbar
 
+import biliauth
+import gpt
+import gui_config
+import syscmds
+import checker
+from compatible_getpass import getpass
 
-def get_email_config(smtps):
-    app = QApplication(sys.argv)
-    dialog = EmailConfigDialog(smtps)
-    dialog.exec()
+sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
-    return {
-        "sender_email": dialog.sender_email_input.text(),
-        "sender_password": dialog.sender_password_input.text(),
-        "smtp_server": dialog.get_smtp_server(),
-        "smtp_port": int(dialog.get_smtp_port()),
-        "bili_report_api": dialog.bili_report_api_checkbox.isChecked(),
-        "reply_limit": int(dialog.reply_limit_input.text()),
-        "enable_gpt": dialog.enable_gpt_checkbox.isChecked(),
-        "gpt_api_key": dialog.gpt_api_key_input.text(),
-        "gpt_model": dialog.gpt_model_combo.currentText(),
-        "enable_email": dialog.enable_email_checkbox.isChecked(),
-        "enable_check_lv2avatarat": dialog.enable_check_lv2avatarat_checkbox.isChecked(),
-        "enable_check_replyimage": dialog.enable_check_replyimage_checkbox.isChecked(),
-        "cookie": dialog.cookie_result  # 返回获取到的cookie
-    }
+selfdir = dirname(sys.argv[0])
+if selfdir == "": selfdir = abspath(".")
+chdir(selfdir)
 
+def saveConfig():
+    with open("./config.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "sender_email": sender_email,
+            "sender_password": sender_password,
+            "headers": headers,
+            "smtp_server": smtp_server,
+            "smtp_port": smtp_port,
+            "bili_report_api": bili_report_api,
+            "csrf": csrf,
+            "reply_limit": reply_limit,
+            "enable_gpt": enable_gpt,
+            "gpt_apibase": gpt.openai.api_base,
+            "gpt_proxy": gpt.openai.proxy,
+            "gpt_apikey": gpt.openai.api_key,
+            "gpt_model": gpt.gpt_model,
+            "enable_email": enable_email,
+            "enable_check_lv2avatarat": enable_check_lv2avatarat,
+            "enable_check_replyimage": enable_check_replyimage
+        }, indent=4, ensure_ascii=False))
 
-class EmailConfigDialog(QDialog):
-    def __init__(self, smtps):
-        super().__init__()
-        self.smtps = smtps  # 将传入的smtps字典存储为类变量
-        self.cookie_result = None  # 保存登录后的cookie
-        self.timer = None  # 定时器用于轮询扫码状态
-        self.initUI()
+def loadConfig():
+    global sender_email, sender_password
+    global headers, smtp_server, smtp_port
+    global bili_report_api, csrf
+    global reply_limit, enable_gpt
+    global enable_email, enable_check_lv2avatarat
+    global enable_check_replyimage
 
-    def initUI(self):
-        self.setWindowTitle('BiliClear 初始化配置')
-        self.setWindowIcon(QIcon('./res/icon.ico'))
-        self.setGeometry(100, 100, 800, 500)  # 窗口调整为800宽度
+    config = json.load(f)
+    sender_email = config["sender_email"]
+    sender_password = config["sender_password"]
+    headers = config["headers"]
+    smtp_server = config["smtp_server"]
+    smtp_port = config["smtp_port"]
+    bili_report_api = config.get("bili_report_api", False)
+    csrf = config.get("csrf", getCsrf(headers["Cookie"]))
+    reply_limit = config.get("reply_limit", 100)
+    enable_gpt = config.get("enable_gpt", False)
+    gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
+    gpt.openai.proxy = config.get("gpt_proxy", gpt.openai.proxy)
+    gpt.openai.api_key = config.get("gpt_apikey", "")
+    gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
+    enable_email = config.get("enable_email", True)
+    enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
+    enable_check_replyimage = config.get("enable_check_replyimage", False)
+    if reply_limit <= 20:
+        reply_limit = 100
 
-        # 左侧表单布局
-        form_layout = QVBoxLayout()
+def getCsrf(cookie: str):
+    try:
+        return re.findall(r"bili_jct=(.*?);", cookie)[0]
+    except IndexError:
+        print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
+        print("请按回车键退出...")
+        syscmds.pause()
+        raise SystemExit
 
-        # 发送者邮箱
-        self.sender_email_label = QLabel('发送者邮箱:')
-        self.sender_email_input = QLineEdit(self)
-        self.sender_email_input.setPlaceholderText("可自动识别常见SMTP服务器信息，请先输入邮箱")
-        self.sender_email_input.textChanged.connect(self.auto_select_smtp_server)
-        form_layout.addWidget(self.sender_email_label)
-        form_layout.addWidget(self.sender_email_input)
+def checkSmtpPassword():
+    try:
+        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        smtp_con.login(sender_email, sender_password)
+        smtp_con.quit()
+        return True
+    except smtplib.SMTPAuthenticationError:
+        return False
 
-        # 发送者密码
-        self.sender_password_label = QLabel('发送者密码:')
-        self.sender_password_input = QLineEdit(self)
-        self.sender_password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        form_layout.addWidget(self.sender_password_label)
-        form_layout.addWidget(self.sender_password_input)
+def getCookieFromUser():
+    if not environ.get("qt_gui", False):
+        if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
+            return getpass("Bilibili cookie: ")
+        else:
+            return biliauth.bilibiliAuth()
 
-        # SMTP服务器（下拉框）
-        self.smtp_server_label = QLabel('SMTP服务器:')
-        self.smtp_server_combo = QComboBox(self)
-        self.smtp_server_combo.addItem("可自动识别")  # 当未识别时，显示这个
-        self.smtp_server_combo.addItem("其他")  # 允许自定义
-        self.smtp_server_combo.addItems(list(self.smtps.keys()))  # 加载所有预设服务器
-        self.smtp_server_combo.currentIndexChanged.connect(self.update_smtp_port)
-        form_layout.addWidget(self.smtp_server_label)
-        form_layout.addWidget(self.smtp_server_combo)
-
-        # SMTP端口（下拉框）
-        self.smtp_port_label = QLabel('SMTP端口:')
-        self.smtp_port_combo = QComboBox(self)
-        self.smtp_port_combo.addItem("可自动识别")  # 当未识别时显示
-        self.smtp_port_combo.addItem("其他")  # 允许自定义
-        self.smtp_port_combo.currentIndexChanged.connect(self.handle_custom_port_selection)
-        form_layout.addWidget(self.smtp_port_label)
-        form_layout.addWidget(self.smtp_port_combo)
-
-        # 额外输入框，当选择“其他”时出现
-        self.custom_smtp_server_input = QLineEdit(self)
-        self.custom_smtp_server_input.setPlaceholderText("请输入自定义SMTP服务器")
-        self.custom_smtp_server_input.setVisible(False)  # 默认隐藏
-
-        self.custom_smtp_port_input = QLineEdit(self)
-        self.custom_smtp_port_input.setPlaceholderText("请输入自定义端口")
-        self.custom_smtp_port_input.setVisible(False)  # 默认隐藏
-
-        form_layout.addWidget(self.custom_smtp_server_input)
-        form_layout.addWidget(self.custom_smtp_port_input)
-
-        # B站举报API 使用
-        self.bili_report_api_label = QLabel('是否额外使用B站评论举报API进行举报:')
-        self.bili_report_api_checkbox = QCheckBox('启用B站举报API')
-        form_layout.addWidget(self.bili_report_api_label)
-        form_layout.addWidget(self.bili_report_api_checkbox)
-
-        # 回复限制数
-        self.reply_limit_label = QLabel('回复限制数 (默认100):')
-        self.reply_limit_input = QLineEdit(self)
-        self.reply_limit_input.setText("100")  # 默认值设置为100
-        form_layout.addWidget(self.reply_limit_label)
-        form_layout.addWidget(self.reply_limit_input)
-
-        # GPT相关配置（下拉框）
-        self.enable_gpt_checkbox = QCheckBox('启用GPT')
-        self.gpt_model_label = QLabel('选择GPT模型:')
-        self.gpt_model_combo = QComboBox(self)
-        gpt_models = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4"]
-        self.gpt_model_combo.addItems(gpt_models)
-        self.gpt_api_key_label = QLabel('GPT API Key:')
-        self.gpt_api_key_input = QLineEdit(self)
-
-        form_layout.addWidget(self.enable_gpt_checkbox)
-        form_layout.addWidget(self.gpt_model_label)
-        form_layout.addWidget(self.gpt_model_combo)
-        form_layout.addWidget(self.gpt_api_key_label)
-        form_layout.addWidget(self.gpt_api_key_input)
-
-        # 其他配置
-        self.enable_email_checkbox = QCheckBox('启用邮件报告')
-        self.enable_check_lv2avatarat_checkbox = QCheckBox('启用检查Lv2头像')
-        self.enable_check_replyimage_checkbox = QCheckBox('启用检查回复图片')
-
-        form_layout.addWidget(self.enable_email_checkbox)
-        form_layout.addWidget(self.enable_check_lv2avatarat_checkbox)
-        form_layout.addWidget(self.enable_check_replyimage_checkbox)
-
-        # 提交按钮（初始为灰色）
-        self.submit_button = QPushButton('提交', self)
-        self.submit_button.setEnabled(False)  # 初始为不可用
-        form_layout.addWidget(self.submit_button)
-
-        # 右侧二维码布局
-        qr_layout = QVBoxLayout()
-        self.qr_label = QLabel('请使用哔哩哔哩扫码获取cookie', self)
-        self.qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中显示
-        qr_layout.addWidget(self.qr_label)
-
-        self.qr_view = QWebEngineView(self)
-        self.qr_view.setMinimumSize(300, 300)  # 设置二维码的大小
-        qr_layout.addWidget(self.qr_view)
-
-        self.cookie_status_label = QLabel('Cookie未获取', self)
-        self.cookie_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中显示
-        qr_layout.addWidget(self.cookie_status_label)
-
-        # 获取二维码链接并加载
-        self.load_qr_code()
-
-        # 主布局
-        main_layout = QHBoxLayout()  # 左右布局
-        main_layout.addLayout(form_layout)  # 左侧为表单
-        main_layout.addLayout(qr_layout)    # 右侧为二维码
-
-        self.setLayout(main_layout)
-
-        # 启动定时器，每2秒检查一次扫码状态
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.check_login_status)
-        self.timer.start(2000)  # 每2000毫秒（2秒）检查一次状态
-
-    def load_qr_code(self):
-        # 获取B站二维码登录的链接并加载二维码
-        headers = {
-            "User-Agent": "Mozilla/5.0"
+def checkCookie():
+    result = requests.get(
+        "https://passport.bilibili.com/x/passport-login/web/cookie/info",
+        headers = headers,
+        data = {
+            "csrf": csrf
         }
-        result = requests.get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate", headers=headers).json()
+    ).json()
+    return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
-        if result["code"] == 0:
-            qrcode_url = f"https://tool.oschina.net/action/qrcode/generate?data={quote_plus(result['data']['url'])}&output=image/png&error=M&type=0&margin=4&size=4"
-            self.qr_view.setUrl(QUrl(qrcode_url))
-            self.qrcode_key = result["data"]["qrcode_key"]
-        else:
-            print("二维码生成失败")
-
-    def check_login_status(self):
-        # 查询登录状态
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
-        params = {
-            "qrcode_key": self.qrcode_key,
-            "source": "main-fe-header",
-        }
-        result_cookie = requests.get(
-            "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
-            params=params,
-            headers=headers
-        )
-        if result_cookie.json()["data"]["code"] == 0:
-            cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
-            self.cookie_result = "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
-            self.cookie_status_label.setText("Cookie获取成功")
-            self.submit_button.setEnabled(True)  # Cookie成功获取后，激活提交按钮
-            print("\n获取cookie成功")
-            self.timer.stop()  # 成功后停止定时器
-        else:
-            self.cookie_status_label.setText("Cookie未获取，请扫码")
-            print("\n获取cookie失败:", result_cookie.json()["data"]["message"])
-
-    def auto_select_smtp_server(self):
-        # 自动根据邮箱识别服务器
-        email = self.sender_email_input.text()
-        if email and "@" in email:
-            domain = email.split('@')[1]
-            domain_key = f"@{domain}"
-            if domain_key in self.smtps:
-                # 自动设置服务器和端口
-                self.smtp_server_combo.setCurrentText(domain_key)
-                smtp_info = self.smtps[domain_key]
-                self.smtp_port_combo.setCurrentText(str(smtp_info['port']))
-            else:
-                # 如果未识别到，重置为可自动识别
-                self.smtp_server_combo.setCurrentText("可自动识别")
-                self.smtp_port_combo.setCurrentText("可自动识别")
-
-    def update_smtp_port(self):
-        # 根据服务器选择更新端口，允许自定义
-        selected_server = self.smtp_server_combo.currentText()
-
-        if selected_server == "其他":
-            # 显示自定义服务器和端口输入框
-            self.custom_smtp_server_input.setVisible(True)
-            self.custom_smtp_port_input.setVisible(True)
-            self.smtp_port_combo.clear()  # 清空端口下拉框
-            self.smtp_port_combo.addItem("其他")
-        elif selected_server in self.smtps:
-            # 隐藏自定义输入框
-            self.custom_smtp_server_input.setVisible(False)
-            self.custom_smtp_port_input.setVisible(False)
-            # 根据选择的服务器自动填充端口
-            smtp_info = self.smtps.get(selected_server, {"port": ""})
-            self.smtp_port_combo.clear()
-            if smtp_info["port"]:
-                self.smtp_port_combo.addItem(str(smtp_info["port"]))
-            self.smtp_port_combo.addItem("其他")
-        else:
-            # 未选择识别的服务器
-            self.smtp_port_combo.setCurrentText("可自动识别")
-
-    def handle_custom_port_selection(self):
-        # 选择自定义端口时，显示输入框
-        if self.smtp_port_combo.currentText() == "其他":
-            self.custom_smtp_port_input.setVisible(True)
-        else:
-            self.custom_smtp_port_input.setVisible(False)
-
-    def get_smtp_server(self):
-        # 返回自定义服务器或选择的服务器
-        if self.smtp_server_combo.currentText() == "其他":
-            return self.custom_smtp_server_input.text()
-        return self.smtp_server_combo.currentText()
-
-    def get_smtp_port(self):
-        # 返回自定义端口或选择的端口
-        if self.smtp_port_combo.currentText() == "其他":
-            return self.custom_smtp_port_input.text()
-        return self.smtp_port_combo.currentText()
-
-
-if __name__ == '__main__':
+if not exists("./config.json"):
     smtps = {
         "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
         "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
@@ -276,7 +127,361 @@ if __name__ == '__main__':
         "@outlook.com": {"server": "smtp.office365.com", "port": 587},
         "@qq.com": {"server": "smtp.qq.com", "port": 465}
     }
+    if not environ.get("qt_gui", False):
+        sender_email = input("Report sender email: ")
+        sender_password = getpass("Report sender password: ")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Cookie": getCookieFromUser()
+        }
 
-    # 调用get_email_config并传递smtps参数
-    config = get_email_config(smtps)
-    print(config)
+        csrf = getCsrf(headers["Cookie"])
+
+        print("\nSMTP 服务器:")
+        for k, v in smtps.items():
+            print(f"    {k}: server = {v["server"]}, port = {v["port"]}")
+
+        smtp_server = input("\nSMTP server: ")
+        smtp_port = int(input("SMTP port: "))
+        bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
+        reply_limit = 100
+        enable_gpt = False
+        gpt.openai.api_key = ""
+        gpt.gpt_model = "gpt-4o-mini"
+        enable_email = True
+        enable_check_lv2avatarat = False
+        enable_check_replyimage = False
+    else: # 此else分支不由 qaqFei 维护
+        config = gui_config.get_email_config(smtps)
+        sender_email = config["sender_email"]
+        sender_password = config["sender_password"]
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Cookie": config["cookie"]
+        }
+        csrf = getCsrf(headers["Cookie"])
+        smtp_server = config["smtp_server"]
+        smtp_port = config["smtp_port"]
+        bili_report_api = config["bili_report_api"]
+        reply_limit = config["reply_limit"]
+        enable_gpt = config["enable_gpt"]
+        gpt.openai.api_key = config["gpt_api_key"]
+        gpt.gpt_model = config["gpt_model"]
+        enable_email = config["enable_email"]
+        enable_check_lv2avatarat = config["enable_check_lv2avatarat"]
+        enable_check_replyimage = config["enable_check_replyimage"]
+else:
+    with open("./config.json", "r", encoding="utf-8") as f:
+        try:
+            loadConfig()
+        except Exception as e:
+            print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
+            print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
+            print("请按回车键退出...")
+            syscmds.pause()
+            raise SystemExit
+
+if not checkCookie():
+    print("bilibili cookie已过期或失效, 请重新登录")
+    headers["Cookie"] = getCookieFromUser()
+    csrf = getCsrf(headers["Cookie"])
+
+try:
+    saveConfig()
+except Exception as e:
+    print("警告: 保存config.json失败, 错误:", e)
+
+try:
+    if enable_email and not checkSmtpPassword():
+        print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
+except ssl.SSLError:
+    print("请选择有SSL的SMTP服务器端口, 或检查代理服务和网络链接是否正常")
+    print("请按回车键退出...")
+    syscmds.pause()
+    raise SystemExit
+
+text_checker = checker.Checker()
+face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
+
+if not environ.get("qt_gui", False): # if gui is webui, it will wait, because 2 people is not the same brain.
+    loaded_sleep_time = 3.0
+    print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
+    time.sleep(loaded_sleep_time)
+    syscmds.clearScreen()
+
+def _btyes2cv2im(btyes):
+    return cv2.imdecode(np.frombuffer(btyes, np.uint8), cv2.IMREAD_COLOR)
+
+def _img_face(img):
+    return not isinstance(
+        face_detector.detectMultiScale(
+            cv2.cvtColor(img, cv2.COLOR_BGR2GRAY),
+            scaleFactor=1.2, minNeighbors=1
+        ),
+        tuple
+    )
+
+def getVideos():
+    "获取推荐视频列表"
+    return [
+        i["param"]
+        for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
+        if i.get("can_play", 0)
+    ]
+
+def getReplys(avid: str | int):
+    "获取评论"
+    maxNum = reply_limit
+    page = 1
+    replies = []
+    while page * 20 <= maxNum:
+        time.sleep(0.4)
+        result = requests.get(
+            f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
+            headers = headers
+        ).json()
+        try:
+            if not result["data"]["replies"]:
+                break
+            replies += result["data"]["replies"]
+        except Exception:
+            break
+        page += 1
+    return replies
+
+def isPorn(text: str):
+    "判断评论是否为色情内容 (使用规则, rules.yaml)"
+    return text_checker.check(text)
+
+def reqBiliReportReply(data: dict, rule: str | None):
+    "调用B站举报评论API"
+    result = requests.post(
+        "https://api.bilibili.com/x/v2/reply/report",
+        headers=headers,
+        data={
+            "type": 1,
+            "oid": data["oid"],
+            "rpid": data["rpid"],
+            "reason": 0,
+            "csrf": csrf,
+            "content": f"""
+举报原因: 色情, 或...
+程序匹配到的规则: {rule}
+(此举报信息自动生成, 可能会存在误报)
+"""
+        }
+    ).json()
+    time.sleep(3.5)
+    result_code = result["code"]
+    if result_code not in (0, 12019):
+        print("b站举报API调用失败, 返回体：", result)
+    elif result_code == 0:
+        print("Bilibili举报API调用成功")
+    elif result_code == 12019:
+        print("举报过于频繁, 等待60s")
+        time.sleep(60)
+        return reqBiliReportReply(data, rule)
+
+def reportReply(data: dict, r: str | None):
+    "举报评论"
+    report_text = f"""
+违规用户UID：{data["mid"]}
+违规信息发布形式：评论, (动态)
+问题描述：破坏了B站和互联网的和谐环境
+诉求：移除违规内容，封禁账号
+
+评论数据内容(B站API返回, x/v2/reply):
+`
+{json.dumps(data, ensure_ascii=False, indent=4)}
+`
+
+(此举报信息自动生成, 可能会存在误报)
+评论内容匹配到的规则: {r}
+"""
+    print("\n违规评论:", repr(data["content"]["message"]))
+    print("规则:", r)
+
+    if enable_email:
+        msg = MIMEText(report_text, "plain", "utf-8")
+        msg["From"] = Header("Report", "utf-8")
+        msg["To"] = Header("Bilibili", "utf-8")
+        msg["Subject"] = Header("违规内容举报", "utf-8")
+        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        smtp_con.login(sender_email, sender_password)
+        smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
+        smtp_con.quit()
+
+    if bili_report_api:
+        reqBiliReportReply(data, r)
+
+    print()  # next line
+
+def replyIsViolations(reply: dict):
+    "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
+    global enable_gpt
+
+    reply_msg = reply["content"]["message"]
+    isp, r = isPorn(reply_msg)
+
+    if "doge" in reply_msg:
+        return False, None
+
+    if not isp and enable_gpt:
+        try:
+            isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
+            print(f"调用GPT进行检测, 结果: {isp}")
+        except gpt.RateLimitError:
+            enable_gpt = False
+            saveConfig()
+            print("GPT请求达到限制, 已关闭GPT检测")
+
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"]["current_level"] == 2 and "@" in reply_msg:  # lv.2
+        avatar_image = requests.get(
+            reply["member"]["avatar"],
+            headers=headers
+        ).content
+        if _img_face(_btyes2cv2im(avatar_image)):  # not empty
+            isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
+        print(f"lv.2和人脸检测, 结果: {isp}")
+
+    if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
+        try:
+            images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
+            have_qrcode = any([bool(pyzbar.decode(np.ndarray(_btyes2cv2im(image)))) for image in images])
+            have_face = any([(_img_face(_btyes2cv2im(image))) for image in images])
+            if have_qrcode or have_face:
+                isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
+            print(f"lv.2和二维码检测, 结果: {isp}")
+        except Exception as e:
+            print("警告: 二维码检测时发生错误, 已跳过", repr(e))
+
+    return isp, r
+
+def processReply(reply: dict):
+    "处理评论并举报"
+    global replyCount, violationsReplyCount
+    global checkedReplies, violationsReplies
+
+    replyCount += 1
+    isp, r = replyIsViolations(reply)
+
+    if isp:
+        violationsReplyCount += 1
+        reportReply(reply, r)
+        violationsReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
+
+    checkedReplies.insert(0, (reply["rpid"], reply["content"]["message"], time.time()))
+    checkedReplies = checkedReplies[:1500]
+    violationsReplies = violationsReplies[:1500]
+    return isp, r
+
+def videoIsViolations(avid: str | int):
+    isp, r = False, None
+
+    return isp, r
+
+def processVideo(avid: str | int):
+    "处理视频并举报"
+    isp, r = videoIsViolations(avid)
+
+def _setMethod():
+    global method
+    method = None
+    method_choices = {
+        "1": "自动获取推荐视频评论",
+        "2": "获取指定视频评论"
+    }
+
+    while method not in method_choices.keys():
+        if method is not None:
+            print("输入错误")
+
+        print("tip: 请定期检查bilibili cookie是否过期 (BiliClear启动时会自动检查)\n")
+        for k, v in method_choices.items():
+            print(f"{k}. {v}")
+        method = input("选择: ")
+        syscmds.clearScreen()
+
+
+def bvid2avid(bvid: str):
+    result = requests.get(
+        f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
+        headers = headers
+    ).json()
+    return result["data"]["aid"]
+
+videoCount = 0
+replyCount = 0
+violationsReplyCount = 0
+waitRiskControl_TimeRemaining = float("nan")
+waitingRiskControl = False
+checkedVideos = []
+checkedReplies = []
+violationsReplies = []
+
+
+def _checkVideo(avid: str | int):
+    processVideo(avid)
+    for reply in getReplys(avid):
+        processReply(reply)
+
+def checkNewVideos():
+    global videoCount, replyCount, violationsReplyCount, checkedVideos
+
+    print("".join([("\n" if videoCount != 0 else ""), "开始检查新一轮推荐视频..."]))
+    print(f"已检查视频: {videoCount}")
+    print(f"已检查评论: {replyCount}")
+    print(
+        f"已举报评论: {violationsReplyCount} 评论违规率: {((violationsReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
+    print()  # next line
+
+    for avid in getVideos():
+        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+        _checkVideo(avid)
+        videoCount += 1
+        checkedVideos.insert(0, (avid, time.time()))
+        checkedVideos = checkedVideos[:1500]
+    time.sleep(1.25)
+
+def checkVideo(bvid: str):
+    global videoCount, checkedVideos
+
+    avid = bvid2avid(bvid)
+    _checkVideo(avid)
+    videoCount += 1
+    checkedVideos.insert(0, (avid, time.time()))
+    checkedVideos = checkedVideos[:1500]
+    time.sleep(1.25)
+
+def waitRiskControl(output: bool = True):
+    global waitRiskControl_TimeRemaining, waitingRiskControl
+
+    stopSt = time.time()
+    stopMinute = 3
+    waitRiskControl_TimeRemaining = 60 * stopMinute
+    waitingRiskControl = True
+    print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
+    while time.time() - stopSt < 60 * stopMinute:
+        waitRiskControl_TimeRemaining = 60 * stopMinute - (time.time() - stopSt)
+        if output:
+            print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
+            time.sleep(1.5)
+        else:
+            time.sleep(0.005)
+    waitingRiskControl = False
+
+if __name__ == "__main__":
+    _setMethod()
+    while True:
+        try:
+            match method:
+                case "1":
+                    checkNewVideos()
+                case "2":
+                    checkVideo(input("\n输入视频bvid: "))
+                case _:
+                    print("链接格式错误")
+        except Exception as e:
+            print("错误", repr(e))
+            if isinstance(e, json.JSONDecodeError):
+                waitRiskControl()

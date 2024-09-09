@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, QCheckBox, QDialog
-from PyQt6.QtCore import QUrl, Qt
+from PyQt6.QtCore import QUrl, Qt, QTimer
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from urllib.parse import quote_plus
 import requests
@@ -12,21 +12,8 @@ def get_email_config(smtps):
     dialog = EmailConfigDialog(smtps)
     dialog.exec()
 
-    return {
-        "sender_email": dialog.sender_email_input.text(),
-        "sender_password": dialog.sender_password_input.text(),
-        "smtp_server": dialog.get_smtp_server(),
-        "smtp_port": int(dialog.get_smtp_port()),
-        "bili_report_api": dialog.bili_report_api_checkbox.isChecked(),
-        "reply_limit": int(dialog.reply_limit_input.text()),
-        "enable_gpt": dialog.enable_gpt_checkbox.isChecked(),
-        "gpt_api_key": dialog.gpt_api_key_input.text(),
-        "gpt_model": dialog.gpt_model_combo.currentText(),
-        "enable_email": dialog.enable_email_checkbox.isChecked(),
-        "enable_check_lv2avatarat": dialog.enable_check_lv2avatarat_checkbox.isChecked(),
-        "enable_check_replyimage": dialog.enable_check_replyimage_checkbox.isChecked(),
-        "cookie": dialog.cookie_result
-    }
+    # 返回从对话框获取到的数据
+    return dialog.result_data()
 
 
 class EmailConfigDialog(QDialog):
@@ -34,12 +21,13 @@ class EmailConfigDialog(QDialog):
         super().__init__()
         self.smtps = smtps  # 将传入的smtps字典存储为类变量
         self.cookie_result = None  # 保存登录后的cookie
+        self.timer = None  # 定时器用于轮询扫码状态
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle('BiliClear 初始化配置')
         self.setWindowIcon(QIcon('./res/icon.ico'))
-        self.setGeometry(100, 100, 900, 500)  # 窗口调整为900宽度以适应二维码和信息
+        self.setGeometry(100, 100, 800, 500)  # 窗口调整为800宽度
 
         # 左侧表单布局
         form_layout = QVBoxLayout()
@@ -127,28 +115,40 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.enable_check_lv2avatarat_checkbox)
         form_layout.addWidget(self.enable_check_replyimage_checkbox)
 
-        # 提交按钮
+        # 提交按钮（初始为灰色）
         self.submit_button = QPushButton('提交', self)
-        self.submit_button.clicked.connect(self.accept)  # 点击后关闭对话框
+        self.submit_button.setEnabled(False)  # 初始为不可用
+        self.submit_button.clicked.connect(self.submit_form)  # 绑定提交按钮的事件
         form_layout.addWidget(self.submit_button)
 
         # 右侧二维码布局
         qr_layout = QVBoxLayout()
+        self.qr_label = QLabel('请使用哔哩哔哩扫码获取cookie', self)
+        self.qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中显示
+        qr_layout.addWidget(self.qr_label)
+
         self.qr_view = QWebEngineView(self)
         self.qr_view.setMinimumSize(300, 300)  # 设置二维码的大小
         qr_layout.addWidget(self.qr_view)
+
+        self.cookie_status_label = QLabel('Cookie未获取', self)
+        self.cookie_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中显示
+        qr_layout.addWidget(self.cookie_status_label)
 
         # 获取二维码链接并加载
         self.load_qr_code()
 
         # 主布局
-        main_layout = QHBoxLayout()
-        main_layout.addLayout(form_layout)  # 左边是表单
-        main_layout.addLayout(qr_layout)    # 右边是二维码
-        main_layout.setStretch(0, 2)  # 左侧宽度设置为2倍
-        main_layout.setStretch(1, 1)  # 右侧二维码宽度设置为1倍
+        main_layout = QHBoxLayout()  # 左右布局
+        main_layout.addLayout(form_layout)  # 左侧为表单
+        main_layout.addLayout(qr_layout)    # 右侧为二维码
 
         self.setLayout(main_layout)
+
+        # 启动定时器，每2秒检查一次扫码状态
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.check_login_status)
+        self.timer.start(2000)  # 每2000毫秒（2秒）检查一次状态
 
     def load_qr_code(self):
         # 获取B站二维码登录的链接并加载二维码
@@ -181,10 +181,36 @@ class EmailConfigDialog(QDialog):
         if result_cookie.json()["data"]["code"] == 0:
             cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
             self.cookie_result = "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
+            self.cookie_status_label.setText("Cookie获取成功")
+            self.submit_button.setEnabled(True)  # Cookie成功获取后，激活提交按钮
             print("\n获取cookie成功")
-            self.accept()  # 关闭对话框
+            self.timer.stop()  # 成功后停止定时器
         else:
+            self.cookie_status_label.setText("Cookie未获取，请继续扫码")
             print("\n获取cookie失败:", result_cookie.json()["data"]["message"])
+
+    def submit_form(self):
+        """处理提交事件并关闭窗口"""
+        # 在这里可以收集所有的表单数据并返回
+        self.accept()  # 关闭窗口
+
+    def result_data(self):
+        """返回提交时收集到的所有表单数据"""
+        return {
+            "sender_email": self.sender_email_input.text(),
+            "sender_password": self.sender_password_input.text(),
+            "smtp_server": self.get_smtp_server(),
+            "smtp_port": int(self.get_smtp_port()),
+            "bili_report_api": self.bili_report_api_checkbox.isChecked(),
+            "reply_limit": int(self.reply_limit_input.text()),
+            "enable_gpt": self.enable_gpt_checkbox.isChecked(),
+            "gpt_api_key": self.gpt_api_key_input.text(),
+            "gpt_model": self.gpt_model_combo.currentText(),
+            "enable_email": self.enable_email_checkbox.isChecked(),
+            "enable_check_lv2avatarat": self.enable_check_lv2avatarat_checkbox.isChecked(),
+            "enable_check_replyimage": self.enable_check_replyimage_checkbox.isChecked(),
+            "cookie": self.cookie_result  # 返回获取到的cookie
+        }
 
     def auto_select_smtp_server(self):
         # 自动根据邮箱识别服务器
