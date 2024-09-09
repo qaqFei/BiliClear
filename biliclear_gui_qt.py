@@ -1,4 +1,4 @@
-# 这段代码不由qaq_fei维护，问题请联系Felix3322
+#这段代码不由qaq_fei维护，问题请联系Felix3322
 print("""
      ██████╗ ████████╗██╗   ██╗██╗    ██████╗ ██╗   ██╗   
     ██╔═══██╗╚══██╔══╝██║   ██║██║    ██╔══██╗╚██╗ ██╔╝   
@@ -15,7 +15,6 @@ print("""
  ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
 
 正在导入库，请稍等。。。""")
-
 import re
 import sys
 import threading
@@ -31,13 +30,13 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QP
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-import biliclear
-import gpt
+
+import biliclear  # 引入主程序中的功能
+import gpt  # 引入 GPT 相关功能
 
 # 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 print("正在加载函数，请稍等。。。")
 CONFIG_FILE = './config.json'
 
@@ -173,8 +172,8 @@ class CommentProcessorThread(threading.Thread):
                 if self._stop_event.is_set():  # 检查停止标志位
                     return  # 安全退出
 
-                isp, rule = biliclear.processReply(reply)
-                self.result_queue.put((reply, isp, rule))
+                isp, rule = biliclear.processReply(reply)  # 处理评论
+                self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
                 self.log_queue.put(f"处理评论: {reply['content']['message']}")
 
 
@@ -196,10 +195,12 @@ class MainWindow(QWidget):
         self.violation_reasons = {}  # 违规原因统计字典
         self.is_paused = False  # 用于暂停自动任务重启的标志
         self.current_bvid = None
+
         self.processor_thread = None
 
-        # 进度条相关
-        self.progress_timer = None
+        # 添加进度条
+        self.progress_bar = None  # 初始化进度条为空
+        self.progress_timer = None  # 定时器
 
         self.initUI()
 
@@ -213,17 +214,17 @@ class MainWindow(QWidget):
         # 定时器检查 15 秒内无日志输出时启动新任务
         self.timeout_timer = QTimer()
         self.timeout_timer.timeout.connect(self.check_for_timeout)
-        self.timeout_timer.start(1000)
+        self.timeout_timer.start(1000)  # 每秒检查一次是否超时
 
         # 定时器每5秒刷新一次饼图
         self.pie_timer = QTimer()
         self.pie_timer.timeout.connect(self.update_token_usage)
-        self.pie_timer.start(5000)
+        self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
 
     def initUI(self):
         self.setWindowTitle('BiliClear QTGUI')
         self.setGeometry(300, 300, 1200, 600)
-        self.setWindowIcon(QIcon('./res/icon.ico'))
+        self.setWindowIcon(QIcon('./res/icon.ico'))  # 设置窗口图标为根目录下的 res/icon.ico
 
         # 创建主布局
         main_layout = QHBoxLayout()
@@ -260,9 +261,9 @@ class MainWindow(QWidget):
         self.settings_btn.clicked.connect(self.show_settings_dialog)
         left_layout.addWidget(self.settings_btn)
 
-        # 始终显示进度条
+        # 创建并添加进度条到左下角按钮上方
         self.progress_bar = QProgressBar(self)
-        self.progress_bar.setVisible(True)  # 始终显示
+        self.progress_bar.setVisible(False)  # 初始隐藏
         left_layout.addWidget(self.progress_bar)
 
         left_widget.setLayout(left_layout)
@@ -271,27 +272,32 @@ class MainWindow(QWidget):
         right_widget = QWidget()
         right_layout = QVBoxLayout()
 
-        self.stats_label = QLabel(self.get_stats_text())
+        self.stats_label = QLabel(self.get_stats_text())  # 显示统计信息
         right_layout.addWidget(self.stats_label)
 
+        # 当前 Avid 显示
         self.current_avid_label = QLabel("当前视频 Avid: 无")
         self.current_avid_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.current_avid_label.mousePressEvent = self.copy_avid_to_clipboard
         right_layout.addWidget(self.current_avid_label)
 
+        # GPT Token 显示
         self.token_label = QLabel("今日已花费 GPT Tokens: 0")
         right_layout.addWidget(self.token_label)
 
+        # 饼图类型选择
         self.pie_chart_type_combo = QComboBox(self)
         self.pie_chart_type_combo.addItems(["违规原因占比"])
         self.pie_chart_type_combo.currentIndexChanged.connect(self.update_pie_chart)
         right_layout.addWidget(self.pie_chart_type_combo)
 
+        # 饼图显示
         self.figure = Figure()
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self.figure)
         right_layout.addWidget(self.canvas)
 
+        # 违规评论列表
         self.violation_table = QTableWidget(0, 1, self)
         self.violation_table.setHorizontalHeaderLabels(["违规评论"])
         self.violation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -322,9 +328,11 @@ class MainWindow(QWidget):
         self.show()
 
     def get_stats_text(self):
+        """生成统计文本"""
         violation_rate = 0
         if biliclear.replyCount > 0:
             violation_rate = (biliclear.violationsReplyCount / biliclear.replyCount) * 100
+
         return (f"BiliClear 数据统计\n"
                 f"已检查视频: {biliclear.videoCount}\n"
                 f"已检查评论: {biliclear.replyCount}\n"
@@ -333,9 +341,11 @@ class MainWindow(QWidget):
                 f"B站API风控中: {biliclear.waitingRiskControl}")
 
     def update_stats_label(self):
+        """更新统计显示"""
         self.stats_label.setText(self.get_stats_text())
 
     def start_processing(self):
+        """手动获取视频的评论并处理"""
         bvid = self.input_box.text().strip()
 
         if not bvid:
@@ -360,6 +370,7 @@ class MainWindow(QWidget):
             self.log_message(f"发生错误: {str(e)}")
 
     def get_avid_from_bvid(self, bvid):
+        """通过 Bilibili API 将 bvid 转换为 avid"""
         try:
             url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
             response = requests.get(url)
@@ -375,20 +386,25 @@ class MainWindow(QWidget):
             return None
 
     def auto_get_videos(self):
+        """自动获取推荐视频的评论并处理"""
         self.start_comment_processing(None)
 
     def start_comment_processing(self, avids):
+        """启动后台线程获取评论"""
         if self.processor_thread and self.processor_thread.is_alive():
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid, parent=self)
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
+                                                       parent=self)
         self.processor_thread.start()
 
     def update_current_avid(self, avid):
+        """更新当前处理的 Avid 显示"""
         self.current_avid_label.setText(f"当前视频 Avid: {avid}")
 
     def copy_avid_to_clipboard(self, event):
+        """将当前 Avid 复制到剪贴板"""
         clipboard = QApplication.clipboard()
         clipboard.setText(self.current_avid_label.text().split(": ")[1])
         self.log_message("Avid 已复制到剪贴板")
@@ -401,6 +417,7 @@ class MainWindow(QWidget):
         comment_item = QTableWidgetItem(comment_text)
         status_item = QTableWidgetItem("违规" if isp else "正常")
 
+        # 设置黑色文字
         comment_item.setForeground(Qt.GlobalColor.black)
         status_item.setForeground(Qt.GlobalColor.black)
 
@@ -416,12 +433,14 @@ class MainWindow(QWidget):
         self.comment_table.setItem(row_position, 1, status_item)
 
         if isp:
+            # 添加到违规评论列表
             violation_row = self.violation_table.rowCount()
             self.violation_table.insertRow(violation_row)
             violation_item = QTableWidgetItem(comment_text)
             violation_item.setFlags(violation_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.violation_table.setItem(violation_row, 0, violation_item)
 
+            # 统计违规原因
             if rule not in self.violation_reasons:
                 self.violation_reasons[rule] = 0
             self.violation_reasons[rule] += 1
@@ -429,16 +448,21 @@ class MainWindow(QWidget):
         if self.comment_table.verticalScrollBar().value() == self.comment_table.verticalScrollBar().maximum():
             self.comment_table.scrollToBottom()
 
+        # 更新统计数据展示
         self.update_stats_label()
+
+        # 自动刷新饼图
         self.update_pie_chart()
 
     def log_message(self, message):
+        """日志显示"""
         self.log_area.append(message)
-        self.last_log_time = QTime.currentTime()
+        self.last_log_time = QTime.currentTime()  # 记录最后一次日志时间
         if self.log_area.verticalScrollBar().value() == self.log_area.verticalScrollBar().maximum():
             self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
     def timerEvent(self, event):
+        """定时器事件，用于检查队列并更新 UI"""
         try:
             while True:
                 reply, isp, rule = self.result_queue.get_nowait()
@@ -454,43 +478,50 @@ class MainWindow(QWidget):
             pass
 
     def check_for_timeout(self):
+        """检查是否在 15 秒内无日志输出，超时则自动开始新任务"""
         if self.is_paused:
-            return
+            return  # 如果当前任务暂停，不执行自动重启逻辑
 
+        # 检查日志中是否有 "*等待..s" 模式的内容
         log_text = self.log_area.toPlainText()
         wait_match = re.search(r"\*等待(\d+)s", log_text)
 
         if wait_match:
-            wait_time = int(wait_match.group(1))
+            wait_time = int(wait_match.group(1))  # 提取等待的秒数
             self.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
             self.is_paused = True
 
+            # 显示进度条并开始倒计时
             self.progress_bar.setVisible(True)
             self.progress_bar.setMaximum(wait_time)
             self.progress_bar.setValue(wait_time)
 
+            # 使用定时器更新进度条
             self.progress_timer = QTimer(self)
             self.progress_timer.timeout.connect(self.update_progress_bar)
-            self.progress_timer.start(1000)
+            self.progress_timer.start(1000)  # 每秒更新一次
 
         elif self.last_log_time.secsTo(QTime.currentTime()) > 15:
             self.log_message("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
 
     def update_progress_bar(self):
+        """每秒更新一次进度条"""
         value = self.progress_bar.value() - 1
         if value >= 0:
             self.progress_bar.setValue(value)
         else:
-            self.progress_bar.setValue(0)
+            # 倒计时结束，隐藏进度条并恢复任务
+            self.progress_bar.setVisible(False)
             self.progress_timer.stop()
             self.resume_auto_restart()
-
     def resume_auto_restart(self):
+        """恢复自动任务重启"""
         self.is_paused = False
         self.log_message("等待结束，恢复自动任务重启。")
 
     def update_token_usage(self):
+        """更新GPT Token使用情况"""
         try:
             token_count = gpt.get_today_gpt_usage()
             self.token_label.setText(f"今日已花费 GPT Tokens: {token_count}")
@@ -498,6 +529,7 @@ class MainWindow(QWidget):
             self.log_message(f"更新GPT Token失败: {str(e)}")
 
     def update_pie_chart(self):
+        """更新饼图，显示违规原因占比"""
         self.ax.clear()
 
         if self.pie_chart_type_combo.currentText() == "违规原因占比":
@@ -505,28 +537,33 @@ class MainWindow(QWidget):
             data = list(self.violation_reasons.values())
             self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
 
-        self.ax.axis('equal')
+        self.ax.axis('equal')  # 保证饼图是圆形的
         self.canvas.draw()
 
     def open_github(self):
+        """打开Github页面"""
         QDesktopServices.openUrl(QUrl("https://github.com/qaqFei/BiliClear"))
 
     def open_contributors(self):
+        """打开贡献者页面"""
         QDesktopServices.openUrl(QUrl("https://github.com/qaqFei/BiliClear/graphs/contributors"))
 
     def open_api_keys(self):
+        """打开ChatGPT API页面"""
         QDesktopServices.openUrl(QUrl("https://platform.openai.com/api-keys"))
 
     def show_settings_dialog(self):
+        """显示设置对话框"""
         dialog = SettingsDialog(self.config, self)
         dialog.exec()
 
     def closeEvent(self, event):
+        """关闭事件处理，自动强制退出所有子线程"""
         if self.processor_thread and self.processor_thread.is_alive():
-            self.processor_thread.stop()
-            self.processor_thread.join(timeout=1)
+            self.processor_thread.stop()  # 停止线程
+            self.processor_thread.join(timeout=1)  # 等待子线程结束
 
-        event.accept()
+        event.accept()  # 允许窗口关闭
 
 
 class Stream:
@@ -534,12 +571,15 @@ class Stream:
         self.log_area = log_area
 
     def write(self, message):
+        """将输出消息显示在日志窗口"""
         if message.strip():
             self.log_area.append(message)
             self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
     def flush(self):
+        """flush 是必须实现的空方法"""
         pass
+
 
 
 print("正在启动GUI，请稍等。。。")
