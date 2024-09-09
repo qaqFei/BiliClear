@@ -3,6 +3,14 @@
 - 这是一个可以批量举报B站`麦片评论`的程序 🚨
 - **需要 Python 版本 >= `3.12`** 🐍
 
+## 界面演示 👁️
+   - QT GUI
+   ![image](https://github.com/qaqFei/BiliClear/blob/main/README%20res/QT_GUI%E6%BC%94%E7%A4%BA.png)
+   - WebUI
+   ![image](https://github.com/qaqFei/BiliClear/blob/main/README%20res/WebUI%E6%BC%94%E7%A4%BA.png)
+   - GUI初始化（仅限WebUI或QT GUI）
+   ![image](https://github.com/qaqFei/BiliClear/blob/main/README%20res/GUI%E5%88%9D%E5%A7%8B%E5%8C%96%E6%BC%94%E7%A4%BA.png)
+
 ## 使用方法 💡
 0. **自动安装版本使用：**
    直接下载运行`release-0.3`中提供的自动安装程序`installer.exe`即可
