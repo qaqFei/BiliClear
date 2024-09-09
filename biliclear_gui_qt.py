@@ -30,9 +30,12 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QP
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+from os import environ
+environ["qt_gui"] = "True"
+print("正在读取设置，初始化。。。")
+import biliclear
+import gpt
 
-import biliclear  # 引入主程序中的功能
-import gpt  # 引入 GPT 相关功能
 
 # 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
