@@ -115,15 +115,6 @@ def checkCookie():
     ).json()
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
-# 判断调用来源
-stack = inspect.stack()
-caller_filename = stack[1].filename if len(stack) > 1 else None
-is_called_by_qt = "biliclear_gui_qt" in caller_filename if caller_filename else False
-is_called_by_webui = "biliclear_gui_webui" in caller_filename if caller_filename else False
-print("is_called_by_qt",is_called_by_qt)
-print("is_called_by_webui",is_called_by_webui)
-
-
 if not exists("./config.json"):
     smtps = {
         "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},

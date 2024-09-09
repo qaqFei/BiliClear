@@ -26,7 +26,7 @@ from PyQt6.QtCore import Qt, QTimer, QTime, QUrl
 from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
-                             QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox)
+                             QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox, QProgressBar)
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -198,6 +198,10 @@ class MainWindow(QWidget):
 
         self.processor_thread = None
 
+        # 添加进度条
+        self.progress_bar = None  # 初始化进度条为空
+        self.progress_timer = None  # 定时器
+
         self.initUI()
 
         # 将标准输出和错误输出重定向到日志窗口
@@ -257,6 +261,11 @@ class MainWindow(QWidget):
         self.settings_btn.clicked.connect(self.show_settings_dialog)
         left_layout.addWidget(self.settings_btn)
 
+        # 创建并添加进度条到左下角按钮上方
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setVisible(False)  # 初始隐藏
+        left_layout.addWidget(self.progress_bar)
+
         left_widget.setLayout(left_layout)
 
         # 右侧布局 - 数据统计和设置
@@ -295,16 +304,15 @@ class MainWindow(QWidget):
         self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         right_layout.addWidget(self.violation_table)
 
-        # 链接按钮
-        github_btn = QPushButton('本项目Github主页')
+        github_btn = QPushButton('本项目Github主页', self)
         github_btn.clicked.connect(self.open_github)
         right_layout.addWidget(github_btn)
 
-        contributors_btn = QPushButton('本项目贡献者')
+        contributors_btn = QPushButton('本项目贡献者', self)
         contributors_btn.clicked.connect(self.open_contributors)
         right_layout.addWidget(contributors_btn)
 
-        api_btn = QPushButton('ChatGPT API管理页面')
+        api_btn = QPushButton('ChatGPT API管理页面', self)
         api_btn.clicked.connect(self.open_api_keys)
         right_layout.addWidget(api_btn)
 
@@ -315,6 +323,7 @@ class MainWindow(QWidget):
         splitter.setSizes([500, 300])
 
         main_layout.addWidget(splitter)
+
         self.setLayout(main_layout)
         self.show()
 
@@ -482,13 +491,30 @@ class MainWindow(QWidget):
             self.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
             self.is_paused = True
 
-            # 创建一个定时器，`wait_time` 秒后恢复自动任务重启
-            QTimer.singleShot(wait_time * 1000, self.resume_auto_restart)
+            # 显示进度条并开始倒计时
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setMaximum(wait_time)
+            self.progress_bar.setValue(wait_time)
+
+            # 使用定时器更新进度条
+            self.progress_timer = QTimer(self)
+            self.progress_timer.timeout.connect(self.update_progress_bar)
+            self.progress_timer.start(1000)  # 每秒更新一次
 
         elif self.last_log_time.secsTo(QTime.currentTime()) > 15:
             self.log_message("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
 
+    def update_progress_bar(self):
+        """每秒更新一次进度条"""
+        value = self.progress_bar.value() - 1
+        if value >= 0:
+            self.progress_bar.setValue(value)
+        else:
+            # 倒计时结束，隐藏进度条并恢复任务
+            self.progress_bar.setVisible(False)
+            self.progress_timer.stop()
+            self.resume_auto_restart()
     def resume_auto_restart(self):
         """恢复自动任务重启"""
         self.is_paused = False
