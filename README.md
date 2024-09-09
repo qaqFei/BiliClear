@@ -103,26 +103,23 @@
 ---
 
 ## `config.json` 配置文件 📝
-
-`config.json` 文件用于存储程序所需的基本配置参数：
-
 - `sender_email`: 📧 发送举报邮件的邮箱
-- `sender_password`: 🔑 邮箱的 SMTP 密钥
-- `headers`: Bilibili API 请求头, 包含以下信息：
-  - `User-Agent`: 浏览器标识
-  - `Cookie`: Bilibili 的 Cookie
-- `smtp_server`: ✉️ SMTP 服务器地址
-- `smtp_port`: 🚪 SMTP 服务器端口
-- `bili_report_api`: 📡 是否调用 Bilibili 的举报 API
-- `csrf`: 🔐 Bilibili API 请求体中的 CSRF 令牌
-- `reply_limit`: 🔒 获取评论的最大数量, 建议不超过 100, 以防被风控
-- `enable_gpt`: 🤖 是否启用 GPT 进行评论过滤
-- `gpt_apibase`: GPT 的 API 地址
-- `gpt_proxy`: GPT 代理地址
-- `gpt_apikey`: GPT API 密钥
-- `gpt_model`: GPT 模型名称
-- `enable_email`: 📧 是否启用邮件发送功能
-- `enable_check_lv2avatarat`: 📷 是否启用评论检查, 过滤带有头像的评论
+- `sender_password`: 🔑 邮箱的 `SMTP` 密钥
+- `headers`: 📨 B站api的请求头
+    - `User-Agent`: 🔍 浏览器标识
+    - `Cookie`: 🍪 B站api的请求头中的 `Cookie`
+- `smtp_server`: ✉️ 邮箱的 `SMTP` 服务器地址
+- `smtp_port`: 🚪 `SMTP` 服务器端口
+- `bili_report_api`: 📡 是否调用B站api的举报接口
+- `csrf`: 🔐 B站api请求体中的 `csrf`
+- `reply_limit`: 🔒 单条视频获取评论的最大数量 尽量不要大于100 可能会被风控
+- `enable_gpt`: 🤖 是否启用GPT进行评论过滤
+- `gpt_apibase`: 🔗 GPT的API地址
+- `gpt_proxy`: 🔗 GPT的代理地址
+- `gpt_apikey`: 🔑 GPT的API密钥
+- `gpt_model`: 🧠 GPT的模型名称
+- `enable_email`: 📧 是否启用邮件发送
+- `enable_check_lv2avatarat`: 📷 是否启用检查评论是否包含头像 (前置: lv.2, 包含@)
 
 ---
 
