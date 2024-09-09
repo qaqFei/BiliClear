@@ -218,7 +218,7 @@ class MainWindow(QWidget):
         self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
 
     def initUI(self):
-        self.setWindowTitle('Bilibili 自动评论监控')
+        self.setWindowTitle('BiliClear QTGUI')
         self.setGeometry(300, 300, 1200, 600)
         self.setWindowIcon(QIcon('./res/icon.ico'))  # 设置窗口图标为根目录下的 res/icon.ico
 

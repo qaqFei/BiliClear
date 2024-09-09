@@ -3,6 +3,7 @@ import time
 from urllib.parse import quote_plus
 
 import requests
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QVBoxLayout, QComboBox, QPushButton, QCheckBox, QDialog, QHBoxLayout
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -40,6 +41,7 @@ class QRCodeLoginDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("B站扫码登录")
+        self.setWindowIcon(QIcon('./res/icon.ico'))
         self.setGeometry(100, 100, 600, 400)
 
         layout = QVBoxLayout()
@@ -108,7 +110,8 @@ class EmailConfigDialog(QDialog):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('邮件配置')
+        self.setWindowTitle('BiliClear 初始化配置')
+        self.setWindowIcon(QIcon('./res/icon.ico'))
         self.setGeometry(100, 100, 400, 500)
 
         layout = QVBoxLayout()
@@ -171,7 +174,7 @@ class EmailConfigDialog(QDialog):
         self.enable_gpt_checkbox = QCheckBox('启用GPT')
         self.gpt_model_label = QLabel('选择GPT模型:')
         self.gpt_model_combo = QComboBox(self)
-        gpt_models = ["GPT-4o", "GPT-4o-mini", "GPT-4", "GPT-4 Turbo", "GPT-3.5 Turbo"]
+        gpt_models = ["gpt-4o", "gpt-4o-mini", "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
         self.gpt_model_combo.addItems(gpt_models)
         self.gpt_api_key_label = QLabel('GPT API Key:')
         self.gpt_api_key_input = QLineEdit(self)
