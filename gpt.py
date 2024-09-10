@@ -5,7 +5,7 @@ import json
 import os
 
 gpt_model = "gpt-4o-mini"
-RateLimitError = openai.RateLimitError
+RateLimitError = openai.error.RateLimitError
 usage_file = "gpt_usage.json"
 
 
