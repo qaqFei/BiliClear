@@ -1,4 +1,6 @@
 #这段代码不由qaq_fei维护，问题请联系Felix3322
+import os
+
 print("""
      ██████╗ ████████╗██╗   ██╗██╗    ██████╗ ██╗   ██╗   
     ██╔═══██╗╚══██╔══╝██║   ██║██║    ██╔══██╗╚██╗ ██╔╝   
@@ -31,6 +33,8 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from os import environ
+import threading
+import concurrent.futures
 environ["qt_gui"] = "True"
 print("正在读取设置，初始化。。。")
 import biliclear
@@ -145,10 +149,49 @@ class CommentProcessorThread(threading.Thread):
         self.video_counter = 0
         self.parent = parent
         self._stop_event = threading.Event()  # 停止标志位
+        self.max_workers = os.cpu_count() / 3  # 动态设置为 CPU 核心数的两倍，处理尽可能多的评论
 
     def stop(self):
-        """设置停止标志位"""
+        """设置停止标志位，通知线程安全退出"""
         self._stop_event.set()
+
+    def process_reply(self, reply):
+        """处理单条评论"""
+        if self._stop_event.is_set():  # 检查停止标志位
+            return  # 安全退出
+
+        isp, rule = biliclear.processReply(reply)  # 处理评论
+        self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
+        self.log_queue.put(f"处理评论: {reply['content']['message']}")
+
+    def process_video(self, avid):
+        """处理单个视频的评论"""
+        if self._stop_event.is_set():  # 检查停止标志位
+            return  # 安全退出
+
+        if self.video_counter >= 10:
+            self.log_queue.put("检查了 10 个视频，自动启动新的任务...")
+            self.parent.auto_get_videos()  # 调用主窗口的自动获取方法
+            return  # 结束当前线程，启动新的任务
+
+        replies = biliclear.getReplys(avid)
+        bvid = self.bvid if self.bvid else f"av{avid}"
+        self.log_queue.put(f"开始处理视频: {bvid}")
+        self.video_counter += 1  # 增加计数
+        biliclear.videoCount += 1
+        self.parent.update_current_avid(avid)  # 更新当前 avid 显示
+
+        # 使用线程池并发处理该视频的评论，最大并发量取决于 CPU 核心数
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {executor.submit(self.process_reply, reply): reply for reply in replies}
+
+            # 等待所有评论处理完成
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    future.result()  # 获取处理结果，若有异常将会抛出
+                except Exception as e:
+                    reply = futures[future]
+                    self.log_queue.put(f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}")
 
     def run(self):
         """线程执行函数"""
@@ -156,28 +199,16 @@ class CommentProcessorThread(threading.Thread):
             self.avids = biliclear.getVideos()
 
         for avid in self.avids:
-            if self._stop_event.is_set():  # 检查停止标志位
+            if self._stop_event.is_set():
                 return  # 安全退出
+            self.process_video(avid)
 
-            if self.video_counter >= 10:
-                self.log_queue.put("检查了 10 个视频，自动启动新的任务...")
-                self.parent.auto_get_videos()  # 调用主窗口的自动获取方法
-                return  # 结束当前线程，启动新的任务
+        self.log_queue.put("所有视频处理完毕")
 
-            replies = biliclear.getReplys(avid)
-            bvid = self.bvid if self.bvid else f"av{avid}"
-            self.log_queue.put(f"开始处理视频: {bvid}")
-            self.video_counter += 1  # 增加计数
-            biliclear.videoCount += 1
-            self.parent.update_current_avid(avid)  # 更新当前 avid 显示
-
-            for reply in replies:
-                if self._stop_event.is_set():  # 检查停止标志位
-                    return  # 安全退出
-
-                isp, rule = biliclear.processReply(reply)  # 处理评论
-                self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
-                self.log_queue.put(f"处理评论: {reply['content']['message']}")
+    def join(self, timeout=None):
+        """等待线程安全退出"""
+        self.stop()  # 停止线程执行
+        super().join(timeout)  # 等待线程结束
 
 
 class MainWindow(QWidget):
