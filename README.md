@@ -89,7 +89,7 @@
 ```
 sudo apt install libzbar-dev libgl-dev libegl1-mesa libxtst-dev libxkbfile-dev
 ```
-   
+---
 ## 项目职责分工 👥
 
 - **qaqFei** 负责：
