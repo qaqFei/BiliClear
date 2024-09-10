@@ -1,6 +1,7 @@
 import sys
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, QCheckBox, QDialog
+from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, \
+    QCheckBox, QDialog
 from PyQt6.QtCore import QUrl, Qt, QTimer
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from urllib.parse import quote_plus
@@ -79,8 +80,9 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.custom_smtp_port_input)
 
         # B站举报API 使用
-        self.bili_report_api_label = QLabel('是否额外使用B站评论举报API进行举报:')
+        self.bili_report_api_label = QLabel('是否使用B站评论举报API进行举报:')
         self.bili_report_api_checkbox = QCheckBox('启用B站举报API')
+        self.bili_report_api_checkbox.setChecked(True)
         form_layout.addWidget(self.bili_report_api_label)
         form_layout.addWidget(self.bili_report_api_checkbox)
 
@@ -107,9 +109,13 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.gpt_api_key_input)
 
         # 其他配置
-        self.enable_email_checkbox = QCheckBox('启用邮件报告')
+        self.enable_email_checkbox = QCheckBox('启用邮件报告（图一乐，目前B站取消了邮箱举报功能）')
         self.enable_check_lv2avatarat_checkbox = QCheckBox('启用检查Lv2头像')
         self.enable_check_replyimage_checkbox = QCheckBox('启用检查回复图片')
+
+        # 默认启用选项
+        self.enable_check_lv2avatarat_checkbox.setChecked(True)
+        self.enable_check_replyimage_checkbox.setChecked(True)
 
         form_layout.addWidget(self.enable_email_checkbox)
         form_layout.addWidget(self.enable_check_lv2avatarat_checkbox)
@@ -141,7 +147,7 @@ class EmailConfigDialog(QDialog):
         # 主布局
         main_layout = QHBoxLayout()  # 左右布局
         main_layout.addLayout(form_layout)  # 左侧为表单
-        main_layout.addLayout(qr_layout)    # 右侧为二维码
+        main_layout.addLayout(qr_layout)  # 右侧为二维码
 
         self.setLayout(main_layout)
 
@@ -155,7 +161,8 @@ class EmailConfigDialog(QDialog):
         headers = {
             "User-Agent": "Mozilla/5.0"
         }
-        result = requests.get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate", headers=headers).json()
+        result = requests.get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
+                              headers=headers).json()
 
         if result["code"] == 0:
             qrcode_url = f"https://tool.oschina.net/action/qrcode/generate?data={quote_plus(result['data']['url'])}&output=image/png&error=M&type=0&margin=4&size=4"
@@ -178,16 +185,22 @@ class EmailConfigDialog(QDialog):
             params=params,
             headers=headers
         )
-        if result_cookie.json()["data"]["code"] == 0:
+
+        result_data = result_cookie.json()["data"]
+
+        if result_data["code"] == 0:
             cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
             self.cookie_result = "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
             self.cookie_status_label.setText("Cookie获取成功")
             self.submit_button.setEnabled(True)  # Cookie成功获取后，激活提交按钮
             print("\n获取cookie成功")
             self.timer.stop()  # 成功后停止定时器
+        elif result_data["code"] == 86038:  # 当二维码失效时
+            self.cookie_status_label.setText("二维码已失效，正在重新获取...")
+            self.load_qr_code()  # 自动重新获取二维码
         else:
             self.cookie_status_label.setText("Cookie未获取，请继续扫码")
-            print("\n获取cookie失败:", result_cookie.json()["data"]["message"])
+            print("\n获取cookie失败:", result_data["message"])
 
     def submit_form(self):
         """处理提交事件并关闭窗口"""
