@@ -80,22 +80,20 @@ def gpt_porn(content):
     ))
 
 
-def gpt_ad(content, need_at=True):
+def gpt_ad(content, need_at=False):
     if need_at:
         return _pcs_gpt_result(_gpt_replay(
             content,
-            "You are a content safety assistant, Does the following text contain any promotional, advertisement, or fraudulent content, including content that attempts to redirect users to websites, homepages, solicit money (such as false donation requests or scams), or encourages watching videos? Casual mentions asking someone to watch a video (e.g., '@X come watch this') should not be considered as promotional or advertisement content. Answer with True or False."
+            "You are a content safety assistant. Does the following text contain any promotional, advertisement, or fraudulent content? This includes, but is not limited to, any content that attempts to solicit money or financial contributions (such as donation requests, crowdfunding campaigns, investment opportunities, or scams), redirect users to websites, promote products or services, or encourage watching videos for monetary gain. Casual mentions asking someone to watch a video (e.g., '@X come watch this') should not be considered promotional or advertisement content. Answer with True or False."
         )) if "@" in content else False
     else:
         return _pcs_gpt_result(_gpt_replay(
             content,
-            "You are a content safety assistant, Does the following text contain any promotional, advertisement, or fraudulent content, including content that attempts to redirect users to websites, homepages, solicit money (such as false donation requests or scams), or encourages watching videos? Casual mentions asking someone to watch a video (e.g., '@X come watch this') should not be considered as promotional or advertisement content. Answer with True or False."
+            "You are a content safety assistant. Does the following text contain any promotional, advertisement, or fraudulent content? This includes, but is not limited to, any content that attempts to solicit money or financial contributions (such as donation requests, crowdfunding campaigns, investment opportunities, or scams), redirect users to websites, promote products or services, or encourage watching videos for monetary gain. Casual mentions asking someone to watch a video (e.g., '@X come watch this') should not be considered promotional or advertisement content. Answer with True or False."
         ))
 
 
 if __name__ == "__main__":
-    # 示例调用：打印今天的 GPT 使用量
+    print(gpt_ad("我的女儿被确诊为恶性肿瘤，一直在医院进行治疗 ,前期的治疗费用都是从五亲六戚和朋友中借款筹备治疗的 ,现在已经欠下了重重债务，无法承担这样的大病医.疗费用 ，还有后期的化疗治疗更加昂贵的医药费用 ，现在因癌症治疗，无法支付后期巨额医疗费用，实在无法延续生命，希望大家可以伸出援助之手帮帮我们 ，谢谢大家🙏"))
     usage_today = get_today_gpt_usage()
     print(f"Today's GPT usage: {usage_today} tokens")
-
-    # 您可以根据需要在此调用 gpt_porn 或 gpt_ad 函数测试 GPT 功能
