@@ -1,5 +1,6 @@
 #这段代码不由qaq_fei维护，问题请联系Felix3322
 import os
+from datetime import datetime
 
 print("""
      ██████╗ ████████╗██╗   ██╗██╗    ██████╗ ██╗   ██╗   
@@ -25,7 +26,7 @@ import json
 import requests
 from os.path import exists
 from PyQt6.QtCore import Qt, QTimer, QTime, QUrl
-from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices
+from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices, QColor
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
                              QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox, QProgressBar)
@@ -42,6 +43,7 @@ import gpt
 
 
 # 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
+plt.style.use('dark_background')
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 print("正在加载函数，请稍等。。。")
@@ -501,9 +503,9 @@ class MainWindow(QWidget):
         status_item.setForeground(Qt.GlobalColor.black)
 
         if isp:
-            status_item.setBackground(Qt.GlobalColor.red)
+            status_item.setBackground(QColor("#fb7299"))
         else:
-            status_item.setBackground(Qt.GlobalColor.green)
+            status_item.setBackground(QColor("#00aeec"))
 
         comment_item.setFlags(comment_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -534,12 +536,12 @@ class MainWindow(QWidget):
         self.update_pie_chart()
 
     def log_message(self, message):
-        """日志显示"""
-        self.log_area.append(message)
-        self.last_log_time = QTime.currentTime()  # 记录最后一次日志时间
-        if self.log_area.verticalScrollBar().value() == self.log_area.verticalScrollBar().maximum():
-            self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+        """日志显示，带时间戳和日志级别，并根据级别高亮显示"""
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # 获取当前时间
+        log_entry = f"[{current_time}] [GUI Log] {message}"  # 格式化日志内容
 
+        self.log_area.append(log_entry)  # 添加日志内容到日志窗口
+        self.log_area.moveCursor(QTextCursor.MoveOperation.End)
     def timerEvent(self, event):
         """定时器事件，用于检查队列并更新 UI"""
         try:
@@ -611,6 +613,7 @@ class MainWindow(QWidget):
         """更新饼图，显示违规原因占比"""
         self.ax.clear()
 
+
         if self.pie_chart_type_combo.currentText() == "违规原因占比":
             labels = list(self.violation_reasons.keys())
             data = list(self.violation_reasons.values())
@@ -650,15 +653,19 @@ class Stream:
         self.log_area = log_area
 
     def write(self, message):
-        """将输出消息显示在日志窗口"""
+        """将输出消息格式化并显示在日志窗口"""
         if message.strip():
-            self.log_area.append(message)
+            # 获取当前时间
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # 格式化日志信息，添加时间戳
+            formatted_message = f"[{current_time}] [Main Log] {message.strip()}"
+            # 将格式化后的日志显示在日志窗口
+            self.log_area.append(formatted_message)
             self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
     def flush(self):
         """flush 是必须实现的空方法"""
         pass
-
 
 
 print("正在启动GUI，请稍等。。。")
