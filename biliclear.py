@@ -245,8 +245,8 @@ def reqBiliReportReply(data: dict, rule: str | None):
     elif result_code == 0:
         print("Bilibili举报API调用成功")
     elif result_code == 12019:
-        print("举报过于频繁, 等待60s")
-        time.sleep(60)
+        print("举报过于频繁, 等待15s")
+        time.sleep(15)
         return reqBiliReportReply(data, rule)
 
 def reportReply(data: dict, r: str | None):
