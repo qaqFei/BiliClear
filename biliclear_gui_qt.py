@@ -498,7 +498,6 @@ class MainWindow(QWidget):
         status_item = QTableWidgetItem("违规" if isp else "正常")
 
         # 设置黑色文字
-        comment_item.setForeground(Qt.GlobalColor.black)
         status_item.setForeground(Qt.GlobalColor.black)
 
         if isp:
