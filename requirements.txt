@@ -4,7 +4,6 @@ PyYAML~=6.0.2
 Levenshtein~=0.25.1
 opencv-python~=4.10.0.84
 numpy~=2.0.2
-pyzbar~=0.1.9
 pywebview~=5.2
 matplotlib~=3.9.2
 PyQt6~=6.7.1

@@ -101,7 +101,7 @@ if not exists("./config.json"):
         gpt.openai.api_key = ""
         gpt.gpt_model = "gpt-4o-mini"
         enable_check_lv2avatarat = False
-        enable_check_replyimage = False
+        enable_check_replyimage = True
     else:
         putConfigVariables(gui_config.get_email_config())
 else:
@@ -289,7 +289,7 @@ def replyIsViolations(reply: dict):
 
     if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
         try:
-            images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
+            images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"].get("pictures", [])]
             opencv_images = [_btyes2cv2im(img) for img in images]
             have_qrcode = any([_img_qrcode(img) for img in opencv_images])
             have_face = any([_img_face(img) for img in opencv_images])
