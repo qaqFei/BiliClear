@@ -197,7 +197,7 @@ def _btyes2cv2im(byte_data):
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return img
 
-def _img_face(img):
+def _img_face(img: cv2.typing.MatLike):
     return not isinstance(
         face_detector.detectMultiScale(
             cv2.cvtColor(img, cv2.COLOR_BGR2GRAY),
@@ -205,6 +205,9 @@ def _img_face(img):
         ),
         tuple
     )
+
+def _img_qrcode(img: cv2.typing.MatLike):
+    return cv2.QRCodeDetector().detect(img)[0]
 
 def getVideos():
     "获取推荐视频列表"
@@ -234,6 +237,43 @@ def getReplys(avid: str | int):
         page += 1
     return replies
 
+def checkUser(uid: int):
+    "检查用户是否需要举报"
+    user_crad = requests.get(
+        f"https://api.bilibili.com/x/web-interface/card?mid={uid}",
+        headers = headers
+    ).json()["data"]["card"]
+    
+    if user_crad["spacesta"] == -2:
+        return False # 封了, 没必要
+    
+    if user_crad["level_info"]["current_level"] != 2:
+        return False # 不是 lv.2, 没必要
+    
+    dynamics = [i["modules"]["module_dynamic"] for i in requests.get(
+        f"https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all?host_mid={uid}",
+        headers = headers
+    ).json()["data"]["items"]]
+    
+    for dynamic in dynamics:
+        if dynamic["desc"] is None:
+            continue
+        
+        text = dynamic["desc"]["text"]
+        if isPorn(text):
+            return True
+        
+        if dynamic["major"] is None:
+            continue
+        elif dynamic["major"]["type"] != "MAJOR_TYPE_DRAW":
+            continue
+        
+        ims = [_btyes2cv2im(requests.get(i["src"]).content) for i in dynamic["major"]["draw"]["items"]]
+        if any([_img_qrcode(img) for img in ims]):
+            return True
+    
+    return False
+        
 def isPorn(text: str):
     "判断评论是否为色情内容 (使用规则, rules.yaml)"
     return text_checker.check(text)
@@ -326,15 +366,15 @@ def replyIsViolations(reply: dict):
             reply["member"]["avatar"],
             headers=headers
         ).content
-        if _img_face(_btyes2cv2im(avatar_image)):  # 检测头像中的人脸
+        if _img_face(_btyes2cv2im(avatar_image)):
             isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
         print(f"lv.2和人脸检测, 结果: {isp}")
 
     if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
         try:
             images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
-            opencv_images = [_btyes2cv2im(image) for image in images]
-            have_qrcode = any([cv2.QRCodeDetector().detect(img)[0] for img in opencv_images])
+            opencv_images = [_btyes2cv2im(img) for img in images]
+            have_qrcode = any([_img_qrcode(img) for img in opencv_images])
             have_face = any([_img_face(img) for img in opencv_images])
 
             if have_qrcode or have_face:
@@ -389,7 +429,6 @@ def _setMethod():
             print(f"{k}. {v}")
         method = input("选择: ")
         syscmds.clearScreen()
-
 
 def bvid2avid(bvid: str):
     result = requests.get(

@@ -37,7 +37,7 @@ rules_exact:
   - ["isgou.cn"]
   - ["出汗", "新动作"]
   - ["QWAH.cznnew.cn"]
-  - ["http", "$-not https", "$-not bilibili"]
+  - ["http", "$-not https", "$-not bilibili", "$-not 163cn.tv"]
 
 rules_elastic:
   - "点击我头像有好东西"
