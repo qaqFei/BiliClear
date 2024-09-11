@@ -121,35 +121,25 @@
 - `enable_email`: 📧 是否启用邮件发送
 - `enable_check_lv2avatarat`: 📷 是否启用检查评论是否包含头像 (前置: lv.2, 包含@)
 
----
+-
 
 ## 开发贡献 🤝
 
 - **过滤规则**：
   - 过滤规则存储在 `./res/rules.yaml` 文件中, 您可以根据需要自行调整。
 
----
+
+## 非常潦草的安装教程 😘
+- https://www.bilibili.com/video/BV1xR4veTEqT/
+
+
+## 交流群组 💬
+- https://t.me/+S458Us0OcQQzODIx
+
 
 ## 声明 ⚠️
 
 使用 `BiliClear` 造成的任何后果由用户自行承担, 开发者不对此负责, 请谨慎使用该工具
-
----
-
-## 非常潦草的安装教程 😘
-- https://www.bilibili.com/video/BV1xR4veTEqT/
-- ## 声明 ⚠️
-
-使用 `BiliClear` 造成的任何后果由用户自行承担, 开发者不对此负责, 请谨慎使用该工具
-
----
-
-## 非常潦草的安装教程 😘
-- <iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113116100691584&bvid=BV1xR4veTEqT&cid=25818631951&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
-
----
-
-## License 📄
 
 ---
 
