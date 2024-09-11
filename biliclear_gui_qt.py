@@ -20,7 +20,6 @@ print("""
 正在导入库，请稍等。。。""")
 import re
 import sys
-import threading
 import queue
 import json
 import requests
@@ -36,7 +35,7 @@ from matplotlib.figure import Figure
 from os import environ
 import threading
 import concurrent.futures
-environ["qt_gui"] = "True"
+environ["gui"] = "True"
 print("正在读取设置，初始化。。。")
 import biliclear
 import gpt
@@ -91,18 +90,6 @@ class SettingsDialog(QDialog):
         self.gpt_model_input = QLineEdit(self.config.get('gpt_model', 'gpt-4o-mini'))
         layout.addRow('GPT Model:', self.gpt_model_input)
 
-        # Email 设置
-        self.enable_email_checkbox = QCheckBox('启用 Email 报告')
-        self.enable_email_checkbox.setChecked(self.config.get('enable_email', True))
-        layout.addRow('启用 Email 报告:', self.enable_email_checkbox)
-
-        self.sender_email_input = QLineEdit(self.config.get('sender_email', ''))
-        layout.addRow('发送者 Email:', self.sender_email_input)
-
-        self.sender_password_input = QLineEdit(self.config.get('sender_password', ''))
-        self.sender_password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        layout.addRow('Email 密码:', self.sender_password_input)
-
         # 其他设置
         self.reply_limit_input = QSpinBox()
         self.reply_limit_input.setMinimum(10)
@@ -127,9 +114,6 @@ class SettingsDialog(QDialog):
         self.config['gpt_apibase'] = self.gpt_apibase_input.text()
         self.config['gpt_apikey'] = self.gpt_apikey_input.text()
         self.config['gpt_model'] = self.gpt_model_input.text()
-        self.config['enable_email'] = self.enable_email_checkbox.isChecked()
-        self.config['sender_email'] = self.sender_email_input.text()
-        self.config['sender_password'] = self.sender_password_input.text()
         self.config['reply_limit'] = self.reply_limit_input.value()
         self.config['enable_check_lv2avatarat'] = self.enable_check_lv2_checkbox.isChecked()
 
@@ -151,7 +135,6 @@ class CommentProcessorThread(threading.Thread):
         self.video_counter = 0
         self.parent = parent
         self._stop_event = threading.Event()  # 停止标志位
-        self.max_workers = os.cpu_count() / 3  # 动态设置为 CPU 核心数的两倍，处理尽可能多的评论
 
     def stop(self):
         """设置停止标志位，通知线程安全退出"""
@@ -162,45 +145,37 @@ class CommentProcessorThread(threading.Thread):
         if self._stop_event.is_set():  # 检查停止标志位
             return  # 安全退出
 
-        isp, rule = biliclear.processReply(reply)  # 处理评论
+        isp, rule = biliclear.processReply(reply)  # 处理评论，调用你现有的 `biliclear` 库
         self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
-        self.log_queue.put(f"处理评论: {reply['content']['message']}")
+        self.log_queue.put(f"处理评论: {reply['content']['message']}")  # 记录日志
 
     def process_video(self, avid):
         """处理单个视频的评论"""
         if self._stop_event.is_set():  # 检查停止标志位
             return  # 安全退出
 
-        if self.video_counter >= 10:
-            self.log_queue.put("检查了 10 个视频，自动启动新的任务...")
-            self.parent.auto_get_videos()  # 调用主窗口的自动获取方法
-            return  # 结束当前线程，启动新的任务
-
-        replies = biliclear.getReplys(avid)
+        replies = biliclear.getReplys(avid)  # 获取该视频的所有评论
         bvid = self.bvid if self.bvid else f"av{avid}"
         self.log_queue.put(f"开始处理视频: {bvid}")
-        self.video_counter += 1  # 增加计数
-        biliclear.videoCount += 1
-        self.parent.update_current_avid(avid)  # 更新当前 avid 显示
+        self.video_counter += 1  # 增加视频计数
 
-        # 使用线程池并发处理该视频的评论，最大并发量取决于 CPU 核心数
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {executor.submit(self.process_reply, reply): reply for reply in replies}
+        biliclear.videoCount += 1  # 更新全局视频计数
+        self.parent.update_current_avid(avid)  # 更新 UI 中的 Avid 显示
 
-            # 等待所有评论处理完成
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()  # 获取处理结果，若有异常将会抛出
-                except Exception as e:
-                    reply = futures[future]
-                    self.log_queue.put(f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}")
+        for reply in replies:  # 顺序处理每条评论
+            if self._stop_event.is_set():  # 检查停止标志位
+                return  # 安全退出
+            try:
+                self.process_reply(reply)  # 逐条处理评论
+            except Exception as e:
+                self.log_queue.put(f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}")
 
     def run(self):
         """线程执行函数"""
         if self.avids is None:
-            self.avids = biliclear.getVideos()
+            self.avids = biliclear.getVideos()  # 获取视频列表
 
-        for avid in self.avids:
+        for avid in self.avids:  # 处理每个视频
             if self._stop_event.is_set():
                 return  # 安全退出
             self.process_video(avid)
@@ -211,7 +186,6 @@ class CommentProcessorThread(threading.Thread):
         """等待线程安全退出"""
         self.stop()  # 停止线程执行
         super().join(timeout)  # 等待线程结束
-
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -542,6 +516,9 @@ class MainWindow(QWidget):
 
         self.log_area.append(log_entry)  # 添加日志内容到日志窗口
         self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+
+        # 更新最后的日志时间
+        self.last_log_time = QTime.currentTime()
     def timerEvent(self, event):
         """定时器事件，用于检查队列并更新 UI"""
         try:
@@ -582,7 +559,8 @@ class MainWindow(QWidget):
             self.progress_timer.timeout.connect(self.update_progress_bar)
             self.progress_timer.start(1000)  # 每秒更新一次
 
-        elif self.last_log_time.secsTo(QTime.currentTime()) > 15:
+        # 检查是否超过 15 秒无日志更新
+        elif self.last_log_time and self.last_log_time.secsTo(QTime.currentTime()) > 15:
             self.log_message("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
 
@@ -596,6 +574,7 @@ class MainWindow(QWidget):
             self.progress_bar.setVisible(False)
             self.progress_timer.stop()
             self.resume_auto_restart()
+
     def resume_auto_restart(self):
         """恢复自动任务重启"""
         self.is_paused = False
