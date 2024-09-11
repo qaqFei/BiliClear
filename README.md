@@ -136,6 +136,23 @@
 
 ---
 
+## 非常潦草的安装教程 😘
+- https://www.bilibili.com/video/BV1xR4veTEqT/
+- ## 声明 ⚠️
+
+使用 `BiliClear` 造成的任何后果由用户自行承担, 开发者不对此负责, 请谨慎使用该工具
+
+---
+
+## 非常潦草的安装教程 😘
+- <iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113116100691584&bvid=BV1xR4veTEqT&cid=25818631951&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+
+---
+
+## License 📄
+
+---
+
 ## License 📄
 
 BiliClear 使用 [MIT License](LICENSE)
