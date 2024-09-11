@@ -13,7 +13,6 @@ from os.path import exists, dirname, abspath
 import cv2
 import numpy as np
 import requests
-import pyzbar.pyzbar as pyzbar
 
 import biliauth
 import gpt
@@ -347,7 +346,7 @@ def replyIsViolations(reply: dict):
     if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
         try:
             images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
-            have_qrcode = any([bool(pyzbar.decode(np.ndarray(_btyes2cv2im(image)))) for image in images])
+            have_qrcode = any([cv2.QRCodeDetector().detect(image)[0] for image in images])
             have_face = any([(_img_face(_btyes2cv2im(image))) for image in images])
             if have_qrcode or have_face:
                 isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
