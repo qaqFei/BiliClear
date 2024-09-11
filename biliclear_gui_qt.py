@@ -260,6 +260,52 @@ class MainWindow(QWidget):
         self.setGeometry(300, 300, 1200, 600)
         self.setWindowIcon(QIcon('./res/icon.ico'))  # 设置窗口图标为根目录下的 res/icon.ico
 
+        # 使用样式表设置深色主题和主色调
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #1e1f22;
+                color: #FFFFFF;
+            }
+            QPushButton {
+                background-color: #00aeec;
+                color: white;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #fb7299;
+            }
+            QLabel, QLineEdit, QComboBox {
+                background-color: #3C3C3C;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+            }
+            QTextEdit {
+                background-color: #3C3C3C;
+                color: #FFFFFF;
+                border: 1px solid #555555;
+            }
+            QTableWidget {
+                background-color: #3C3C3C;
+                color: white;
+                border: 1px solid #555555;
+            }
+            QTableWidget QHeaderView::section {
+                background-color: #555555;
+                color: white;
+                border: 1px solid #3C3C3C;
+            }
+            QProgressBar {
+                background-color: #3C3C3C;
+                border: 1px solid #555555;
+                color: white;
+            }
+            QProgressBar::chunk {
+                background-color: #00aeec;
+            }
+        """)
+
         # 创建主布局
         main_layout = QHBoxLayout()
         splitter = QSplitter(Qt.Orientation.Horizontal)
