@@ -1,13 +1,8 @@
 import json
 import re  # used for rules matching
-import smtplib
-import ssl
 import sys
 import time
-import io
 from datetime import datetime
-from email.header import Header
-from email.mime.text import MIMEText
 from os import chdir, environ
 from os.path import exists, dirname, abspath
 
@@ -31,11 +26,7 @@ chdir(selfdir)
 def saveConfig():
     with open("./config.json", "w", encoding="utf-8") as f:
         f.write(json.dumps({
-            "sender_email": sender_email,
-            "sender_password": sender_password,
             "headers": headers,
-            "smtp_server": smtp_server,
-            "smtp_port": smtp_port,
             "bili_report_api": bili_report_api,
             "csrf": csrf,
             "reply_limit": reply_limit,
@@ -44,25 +35,19 @@ def saveConfig():
             "gpt_proxy": gpt.openai.proxy,
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
-            "enable_email": enable_email,
             "enable_check_lv2avatarat": enable_check_lv2avatarat,
             "enable_check_replyimage": enable_check_replyimage
         }, indent=4, ensure_ascii=False))
 
 def putConfigVariables(config: dict):
-    global sender_email, sender_password
-    global headers, smtp_server, smtp_port
+    global headers
     global bili_report_api, csrf
     global reply_limit, enable_gpt
-    global enable_email, enable_check_lv2avatarat
+    global enable_check_lv2avatarat
     global enable_check_replyimage
     
-    sender_email = config["sender_email"]
-    sender_password = config["sender_password"]
     headers = config["headers"]
-    smtp_server = config["smtp_server"]
-    smtp_port = config["smtp_port"]
-    bili_report_api = config.get("bili_report_api", False)
+    bili_report_api = config.get("bili_report_api", True)
     csrf = config.get("csrf", getCsrf(headers["Cookie"]))
     reply_limit = config.get("reply_limit", 100)
     enable_gpt = config.get("enable_gpt", False)
@@ -70,9 +55,8 @@ def putConfigVariables(config: dict):
     gpt.openai.proxy = config.get("gpt_proxy", gpt.openai.proxy)
     gpt.openai.api_key = config.get("gpt_apikey", "")
     gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
-    enable_email = config.get("enable_email", True)
     enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
-    enable_check_replyimage = config.get("enable_check_replyimage", False)
+    enable_check_replyimage = config.get("enable_check_replyimage", True)
     if reply_limit <= 20:
         reply_limit = 100
     
@@ -85,18 +69,9 @@ def getCsrf(cookie: str):
         syscmds.pause()
         raise SystemExit
 
-def checkSmtpPassword():
-    try:
-        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        smtp_con.login(sender_email, sender_password)
-        smtp_con.quit()
-        return True
-    except smtplib.SMTPAuthenticationError:
-        return False
-
 def getCookieFromUser():
-    if not environ.get("qt_gui", False):
-        if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
+    if not environ.get("gui", False):
+        if "n" in input("是否使用二维码登录B站, 默认为是(y/n): ").lower():
             return getpass("Bilibili cookie: ")
         else:
             return biliauth.bilibiliAuth()
@@ -112,23 +87,7 @@ def checkCookie():
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
 if not exists("./config.json"):
-    smtps = {
-        "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
-        "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
-        "@sina.com": {"server": "smtp.sina.com.cn", "port": 465},
-        "@tom.com": {"server": "smtp.tom.com", "port": 465},
-        "@163.com": {"server": "smtp.163.com", "port": 465},
-        "@126.com": {"server": "smtp.126.com", "port": 465},
-        "@yahoo.com": {"server": "smtp.mail.yahoo.com", "port": 465},
-        "@foxmail.com": {"server": "smtp.qq.com", "port": 465},
-        "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
-        "@hotmail.com": {"server": "smtp.live.com", "port": 587},
-        "@outlook.com": {"server": "smtp.office365.com", "port": 587},
-        "@qq.com": {"server": "smtp.qq.com", "port": 465}
-    }
-    if not environ.get("qt_gui", False):
-        sender_email = input("Report sender email: ")
-        sender_password = getpass("Report sender password: ")
+    if not environ.get("gui", False):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             "Cookie": getCookieFromUser()
@@ -136,22 +95,15 @@ if not exists("./config.json"):
 
         csrf = getCsrf(headers["Cookie"])
 
-        print("\nSMTP 服务器:")
-        for k, v in smtps.items():
-            print(f"    {k}: server = {v["server"]}, port = {v["port"]}")
-
-        smtp_server = input("\nSMTP server: ")
-        smtp_port = int(input("SMTP port: "))
-        bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
+        bili_report_api = True
         reply_limit = 100
         enable_gpt = False
         gpt.openai.api_key = ""
         gpt.gpt_model = "gpt-4o-mini"
-        enable_email = True
         enable_check_lv2avatarat = False
         enable_check_replyimage = False
     else:
-        putConfigVariables(gui_config.get_email_config(smtps))
+        putConfigVariables(gui_config.get_email_config())
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -173,26 +125,16 @@ try:
 except Exception as e:
     print("警告: 保存config.json失败, 错误:", e)
 
-try:
-    if enable_email and not checkSmtpPassword():
-        print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
-except ssl.SSLError:
-    print("请选择有SSL的SMTP服务器端口, 或检查代理服务和网络链接是否正常")
-    print("请按回车键退出...")
-    syscmds.pause()
-    raise SystemExit
-
 text_checker = checker.Checker()
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
 
-if not environ.get("qt_gui", False): # if gui is webui, it will wait, because 2 people is not the same brain.
+if not environ.get("gui", False):
     loaded_sleep_time = 3.0
     print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
     time.sleep(loaded_sleep_time)
     syscmds.clearScreen()
 
 def _btyes2cv2im(byte_data):
-    # 将二进制数据转换为OpenCV图像格式
     nparr = np.frombuffer(byte_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return img
@@ -308,33 +250,8 @@ def reqBiliReportReply(data: dict, rule: str | None):
         return reqBiliReportReply(data, rule)
 
 def reportReply(data: dict, r: str | None):
-    "举报评论"
-    report_text = f"""
-违规用户UID：{data["mid"]}
-违规信息发布形式：评论, (动态)
-问题描述：破坏了B站和互联网的和谐环境
-诉求：移除违规内容，封禁账号
-
-评论数据内容(B站API返回, x/v2/reply):
-`
-{json.dumps(data, ensure_ascii=False, indent=4)}
-`
-
-(此举报信息自动生成, 可能会存在误报)
-评论内容匹配到的规则: {r}
-"""
     print("\n违规评论:", repr(data["content"]["message"]))
     print("规则:", r)
-
-    if enable_email:
-        msg = MIMEText(report_text, "plain", "utf-8")
-        msg["From"] = Header("Report", "utf-8")
-        msg["To"] = Header("Bilibili", "utf-8")
-        msg["Subject"] = Header("违规内容举报", "utf-8")
-        smtp_con = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        smtp_con.login(sender_email, sender_password)
-        smtp_con.sendmail(sender_email, ["help@bilibili.com"], msg.as_string())
-        smtp_con.quit()
 
     if bili_report_api:
         reqBiliReportReply(data, r)
