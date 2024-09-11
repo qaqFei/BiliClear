@@ -4,6 +4,7 @@ import smtplib
 import ssl
 import sys
 import time
+import io
 from datetime import datetime
 from email.header import Header
 from email.mime.text import MIMEText
@@ -48,15 +49,14 @@ def saveConfig():
             "enable_check_replyimage": enable_check_replyimage
         }, indent=4, ensure_ascii=False))
 
-def loadConfig():
+def putConfigVariables(config: dict):
     global sender_email, sender_password
     global headers, smtp_server, smtp_port
     global bili_report_api, csrf
     global reply_limit, enable_gpt
     global enable_email, enable_check_lv2avatarat
     global enable_check_replyimage
-
-    config = json.load(f)
+    
     sender_email = config["sender_email"]
     sender_password = config["sender_password"]
     headers = config["headers"]
@@ -75,7 +75,7 @@ def loadConfig():
     enable_check_replyimage = config.get("enable_check_replyimage", False)
     if reply_limit <= 20:
         reply_limit = 100
-
+    
 def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
@@ -150,29 +150,12 @@ if not exists("./config.json"):
         enable_email = True
         enable_check_lv2avatarat = False
         enable_check_replyimage = False
-    else: # 此else分支不由 qaqFei 维护
-        config = gui_config.get_email_config(smtps)
-        sender_email = config["sender_email"]
-        sender_password = config["sender_password"]
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-            "Cookie": config["cookie"]
-        }
-        csrf = getCsrf(headers["Cookie"])
-        smtp_server = config["smtp_server"]
-        smtp_port = config["smtp_port"]
-        bili_report_api = config["bili_report_api"]
-        reply_limit = config["reply_limit"]
-        enable_gpt = config["enable_gpt"]
-        gpt.openai.api_key = config["gpt_api_key"]
-        gpt.gpt_model = config["gpt_model"]
-        enable_email = config["enable_email"]
-        enable_check_lv2avatarat = config["enable_check_lv2avatarat"]
-        enable_check_replyimage = config["enable_check_replyimage"]
+    else:
+        putConfigVariables(gui_config.get_email_config(smtps))
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
-            loadConfig()
+            putConfigVariables(json.load(f))
         except Exception as e:
             print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
             print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
@@ -318,10 +301,6 @@ def reportReply(data: dict, r: str | None):
 
     print()  # next line
 
-
-
-
-
 def replyIsViolations(reply: dict):
     "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
     global enable_gpt
@@ -332,7 +311,6 @@ def replyIsViolations(reply: dict):
     if "doge" in reply_msg:
         return False, None
 
-    # 使用 GPT 进行内容检测
     if not isp and enable_gpt:
         try:
             isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
@@ -342,7 +320,6 @@ def replyIsViolations(reply: dict):
             saveConfig()
             print("GPT请求达到限制, 已关闭GPT检测")
 
-    # lv.2用户头像检测（人脸检测）
     if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
         "current_level"] == 2 and "@" in reply_msg:
         avatar_image = requests.get(
@@ -353,17 +330,11 @@ def replyIsViolations(reply: dict):
             isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
         print(f"lv.2和人脸检测, 结果: {isp}")
 
-    # lv.2评论图片检测（二维码和人脸检测）
     if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
         try:
-            # 获取评论中的图片并转换为OpenCV格式
             images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
             opencv_images = [_btyes2cv2im(image) for image in images]
-
-            # 检测二维码
             have_qrcode = any([cv2.QRCodeDetector().detect(img)[0] for img in opencv_images])
-
-            # 检测人脸
             have_face = any([_img_face(img) for img in opencv_images])
 
             if have_qrcode or have_face:
