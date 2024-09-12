@@ -30,11 +30,7 @@ chdir(selfdir)
 def saveConfig():
     with open("./config.json", "w", encoding="utf-8") as f:
         f.write(json.dumps({
-            "sender_email": sender_email,
-            "sender_password": sender_password,
             "headers": headers,
-            "smtp_server": smtp_server,
-            "smtp_port": smtp_port,
             "bili_report_api": bili_report_api,
             "csrf": csrf,
             "reply_limit": reply_limit,
@@ -43,7 +39,6 @@ def saveConfig():
             "gpt_proxy": gpt.openai.proxy,
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
-            "enable_email": enable_email,
             "enable_check_lv2avatarat": enable_check_lv2avatarat,
             "enable_check_replyimage": enable_check_replyimage
         }, indent=4, ensure_ascii=False))
@@ -151,22 +146,17 @@ if not exists("./config.json"):
         enable_check_lv2avatarat = False
         enable_check_replyimage = False
     else: # 此else分支不由 qaqFei 维护
-        config = gui_config.get_email_config(smtps)
-        sender_email = config["sender_email"]
-        sender_password = config["sender_password"]
+        config = gui_config.get_email_config()
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             "Cookie": config["cookie"]
         }
         csrf = getCsrf(headers["Cookie"])
-        smtp_server = config["smtp_server"]
-        smtp_port = config["smtp_port"]
         bili_report_api = config["bili_report_api"]
         reply_limit = config["reply_limit"]
         enable_gpt = config["enable_gpt"]
         gpt.openai.api_key = config["gpt_api_key"]
         gpt.gpt_model = config["gpt_model"]
-        enable_email = config["enable_email"]
         enable_check_lv2avatarat = config["enable_check_lv2avatarat"]
         enable_check_replyimage = config["enable_check_replyimage"]
 else:
@@ -189,15 +179,6 @@ try:
     saveConfig()
 except Exception as e:
     print("警告: 保存config.json失败, 错误:", e)
-
-try:
-    if enable_email and not checkSmtpPassword():
-        print("警告: SMTP 密钥不正确, 请检查SMTP密钥")
-except ssl.SSLError:
-    print("请选择有SSL的SMTP服务器端口, 或检查代理服务和网络链接是否正常")
-    print("请按回车键退出...")
-    syscmds.pause()
-    raise SystemExit
 
 text_checker = checker.Checker()
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")

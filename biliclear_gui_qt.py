@@ -34,8 +34,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from os import environ
 import threading
-import concurrent.futures
-environ["gui"] = "True"
+environ["QT_gui"] = "True"
 print("正在读取设置，初始化。。。")
 import biliclear
 import gpt
