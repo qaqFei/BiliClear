@@ -63,7 +63,7 @@ def putConfigVariables(config: dict):
 def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
-    except IndexError:
+    except:
         print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
         print("请按回车键退出...")
         syscmds.pause()
@@ -103,7 +103,26 @@ if not exists("./config.json"):
         enable_check_lv2avatarat = False
         enable_check_replyimage = True
     else:
-        putConfigVariables(gui_config.get_email_config())
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Cookie": getCookieFromUser()
+        }
+        mdict = gui_config.get_email_config({
+            "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
+            "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
+            "@sina.com": {"server": "smtp.sina.com.cn", "port": 465},
+            "@tom.com": {"server": "smtp.tom.com", "port": 465},
+            "@163.com": {"server": "smtp.163.com", "port": 465},
+            "@126.com": {"server": "smtp.126.com", "port": 465},
+            "@yahoo.com": {"server": "smtp.mail.yahoo.com", "port": 465},
+            "@foxmail.com": {"server": "smtp.qq.com", "port": 465},
+            "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
+            "@hotmail.com": {"server": "smtp.live.com", "port": 587},
+            "@outlook.com": {"server": "smtp.office365.com", "port": 587},
+            "@qq.com": {"server": "smtp.qq.com", "port": 465}
+        })
+        mdict['headers'] = headers
+        putConfigVariables(mdict)
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -380,7 +399,7 @@ def checkNewVideos():
     print()  # next line
 
     for avid in getVideos():
-        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))

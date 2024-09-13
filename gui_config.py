@@ -21,6 +21,8 @@ class EmailConfigDialog(QDialog):
     def __init__(self, smtps):
         super().__init__()
         self.smtps = smtps  # 将传入的smtps字典存储为类变量
+        self.formal_data = None # 前消息
+        self.formal_datanew = None # 前消息-新
         self.cookie_result = None  # 保存登录后的cookie
         self.timer = None  # 定时器用于轮询扫码状态
         self.initUI()
@@ -187,20 +189,27 @@ class EmailConfigDialog(QDialog):
         )
 
         result_data = result_cookie.json()["data"]
-
+        
         if result_data["code"] == 0:
             cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
             self.cookie_result = "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
             self.cookie_status_label.setText("Cookie获取成功")
             self.submit_button.setEnabled(True)  # Cookie成功获取后，激活提交按钮
-            print("\n获取cookie成功")
+            print(f"\n获取cookie: {self.cookie_result}")
             self.timer.stop()  # 成功后停止定时器
         elif result_data["code"] == 86038:  # 当二维码失效时
             self.cookie_status_label.setText("二维码已失效，正在重新获取...")
             self.load_qr_code()  # 自动重新获取二维码
         else:
             self.cookie_status_label.setText("Cookie未获取，请继续扫码")
-            print("\n获取cookie失败:", result_data["message"])
+            if self.formal_data == result_data["message"]:
+                self.formal_datanew = self.formal_datanew[:-3] + "||| -]"
+            else:
+                self.formal_datanew = result_data['message'] + " [- ||| -]"
+                print("\n")
+            sys.stdout.write("\r" + self.formal_datanew)  # \r将光标移动到行首，进行覆盖输出
+            sys.stdout.flush()  # 立即将内容输出到控制台
+        self.formal_data = result_data["message"]
 
     def submit_form(self):
         """处理提交事件并关闭窗口"""
@@ -213,7 +222,7 @@ class EmailConfigDialog(QDialog):
             "sender_email": self.sender_email_input.text(),
             "sender_password": self.sender_password_input.text(),
             "smtp_server": self.get_smtp_server(),
-            "smtp_port": int(self.get_smtp_port()),
+            "smtp_port": int(-1 if not isinstance(self.get_smtp_port(), int) else self.get_smtp_port()),
             "bili_report_api": self.bili_report_api_checkbox.isChecked(),
             "reply_limit": int(self.reply_limit_input.text()),
             "enable_gpt": self.enable_gpt_checkbox.isChecked(),
