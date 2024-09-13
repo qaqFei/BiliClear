@@ -62,6 +62,3 @@ def bilibiliAuth() -> str:
     qrcode_window.destroy()
         
     return cookie
-
-if __name__ == "__main__":
-    print(bilibiliAuth())
