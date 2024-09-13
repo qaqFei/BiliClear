@@ -20,8 +20,8 @@ from matplotlib.figure import Figure
 from os import environ
 import threading
 environ["QT_gui"] = "True"
-print("正在读取设置，初始化。。。")
-import biliclear
+
+import biliclear  # 确保不更改 biliclear 的调用方式
 import gpt
 
 # 日志目录
@@ -36,47 +36,56 @@ log_filename = os.path.join(LOG_DIR, datetime.now().strftime("%Y-%m-%d") + ".log
 class QTextEditLogger(logging.Handler):
     """自定义 Handler，用于将日志输出到 QTextEdit 中，并检查是否需要更新进度条"""
 
-    def __init__(self, log_area, progress_bar, progress_timer, parent):
+    def __init__(self, log_area, progress_bar, parent):
         super().__init__()
         self.log_area = log_area
         self.progress_bar = progress_bar
-        self.progress_timer = progress_timer
         self.parent = parent
+        self.wait_time = None  # 等待时间
 
     def emit(self, record):
         """将日志信息格式化并输出到 QTextEdit，并根据日志内容更新进度条"""
         log_entry = self.format(record)
-        if record.levelno == logging.INFO:
+        if record.levelno == logging.DEBUG:
+            self.log_area.setTextColor(QColor("lightgray"))
+        elif record.levelno == logging.INFO:
             self.log_area.setTextColor(QColor("white"))
         elif record.levelno == logging.WARNING:
             self.log_area.setTextColor(QColor("yellow"))
         elif record.levelno == logging.ERROR:
             self.log_area.setTextColor(QColor("red"))
+        elif record.levelno == logging.CRITICAL:
+            self.log_area.setTextColor(QColor("red"))
 
         self.log_area.append(log_entry)
         self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+
+        # 更新最后的日志时间
+        self.parent.last_log_time = QTime.currentTime()
 
         # 检查日志中是否包含等待时间的提示
         wait_match = re.search(r"\*等待(\d+)s", log_entry)
         if wait_match:
             wait_time = int(wait_match.group(1))
-            self.parent.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
+            logging.info(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
             self.parent.is_paused = True
 
             # 显示进度条并开始倒计时
             self.progress_bar.setVisible(True)
             self.progress_bar.setMaximum(wait_time)
             self.progress_bar.setValue(wait_time)
+            self.wait_time = wait_time
 
             # 启动进度条定时器
-            self.progress_timer.start(1000)
+            self.parent.progress_timer.start(1000)
         else:
-            # 没有等待提示，检查是否超过15秒无日志更新
-            if self.parent.last_log_time and self.parent.last_log_time.secsTo(QTime.currentTime()) > 15:
-                self.parent.log_message("超时 15 秒，自动启动新任务...")
-                self.parent.auto_get_videos()
+            # 如果进度条可见且日志不包含等待提示，则隐藏进度条
+            if self.progress_bar.isVisible():
+                self.progress_bar.setVisible(False)
+                self.parent.progress_timer.stop()
+                self.parent.resume_auto_restart()
 
-def setup_logging(log_area, progress_bar, progress_timer, parent):
+def setup_logging(log_area, progress_bar, parent):
     """设置日志配置，输出到 QTextEdit 和日志文件，并添加进度条更新支持"""
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
@@ -89,17 +98,17 @@ def setup_logging(log_area, progress_bar, progress_timer, parent):
     logger.addHandler(file_handler)
 
     # QTextEdit 输出处理程序，并且绑定进度条的更新
-    qt_handler = QTextEditLogger(log_area, progress_bar, progress_timer, parent)
+    qt_handler = QTextEditLogger(log_area, progress_bar, parent)
     qt_handler.setLevel(logging.DEBUG)
     qt_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     qt_handler.setFormatter(qt_formatter)
     logger.addHandler(qt_handler)
 
-# 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
+# 设置 matplotlib 全局字体和样式
 plt.style.use('dark_background')
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
-print("正在加载函数，请稍等。。。")
+
 CONFIG_FILE = './config.json'
 
 def load_config():
@@ -138,7 +147,7 @@ class SettingsDialog(QDialog):
         self.gpt_apikey_input = QLineEdit(self.config.get('gpt_apikey', ''))
         layout.addRow('GPT API Key:', self.gpt_apikey_input)
 
-        self.gpt_model_input = QLineEdit(self.config.get('gpt_model', 'gpt-4o-mini'))
+        self.gpt_model_input = QLineEdit(self.config.get('gpt_model', 'gpt-3.5-turbo'))
         layout.addRow('GPT Model:', self.gpt_model_input)
 
         # 其他设置
@@ -175,13 +184,11 @@ class SettingsDialog(QDialog):
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
 
-    def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
+    def __init__(self, avids=None, result_queue=None, bvid=None, parent=None):
         super().__init__()
         self.avids = avids
         self.result_queue = result_queue
-        self.log_queue = log_queue
         self.bvid = bvid
-        self.enable_gpt = enable_gpt
         self.video_counter = 0
         self.parent = parent
         self._stop_event = threading.Event()  # 停止标志位
@@ -197,7 +204,7 @@ class CommentProcessorThread(threading.Thread):
 
         isp, rule = biliclear.processReply(reply)  # 处理评论，调用你现有的 `biliclear` 库
         self.result_queue.put((reply, isp, rule))  # 将评论和检测结果发送到主线程
-        self.log_queue.put(f"处理评论: {reply['content']['message']}")  # 记录日志
+        logging.info(f"处理评论: {reply['content']['message']}")  # 记录日志
 
     def process_video(self, avid):
         """处理单个视频的评论"""
@@ -206,7 +213,7 @@ class CommentProcessorThread(threading.Thread):
 
         replies = biliclear.getReplys(avid)  # 获取该视频的所有评论
         bvid = self.bvid if self.bvid else f"av{avid}"
-        self.log_queue.put(f"开始处理视频: {bvid}")
+        logging.info(f"开始处理视频: {bvid}")
         self.video_counter += 1  # 增加视频计数
 
         biliclear.videoCount += 1  # 更新全局视频计数
@@ -218,7 +225,7 @@ class CommentProcessorThread(threading.Thread):
             try:
                 self.process_reply(reply)  # 逐条处理评论
             except Exception as e:
-                self.log_queue.put(f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}")
+                logging.error(f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}")
 
     def run(self):
         """线程执行函数"""
@@ -230,7 +237,7 @@ class CommentProcessorThread(threading.Thread):
                 return  # 安全退出
             self.process_video(avid)
 
-        self.log_queue.put("所有视频处理完毕")
+        logging.info("所有视频处理完毕")
 
     def join(self, timeout=None):
         """等待线程安全退出"""
@@ -249,7 +256,6 @@ class MainWindow(QWidget):
 
         # 创建线程安全队列用于传递数据
         self.result_queue = queue.Queue()
-        self.log_queue = queue.Queue()
 
         self.last_log_time = QTime.currentTime()
         self.violation_reasons = {}  # 违规原因统计字典
@@ -265,7 +271,8 @@ class MainWindow(QWidget):
         self.initUI()
 
         # 初始化日志系统
-        setup_logging(self.log_area, self.progress_bar, self.progress_timer, self)
+        self.progress_timer = QTimer(self)
+        setup_logging(self.log_area, self.progress_bar, self)
 
         # 定时器，每 100ms 检查一次队列的更新，更新 UI 和日志
         self.timer = self.startTimer(100)
@@ -277,8 +284,13 @@ class MainWindow(QWidget):
 
         # 定时器每5秒刷新一次饼图
         self.pie_timer = QTimer()
-        self.pie_timer.timeout.connect(self.update_token_usage)
+        self.pie_timer.timeout.connect(self.update_pie_chart)
         self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
+
+        # 初始化 GPT Token 使用情况
+        self.token_usage_timer = QTimer()
+        self.token_usage_timer.timeout.connect(self.update_token_usage)
+        self.token_usage_timer.start(5000)  # 每隔5秒更新一次
 
     def initUI(self):
         self.setWindowTitle('BiliClear QTGUI')
@@ -425,7 +437,7 @@ class MainWindow(QWidget):
 
         splitter.addWidget(left_widget)
         splitter.addWidget(right_widget)
-        splitter.setSizes([500, 300])
+        splitter.setSizes([700, 500])
 
         main_layout.addWidget(splitter)
 
@@ -454,25 +466,25 @@ class MainWindow(QWidget):
         bvid = self.input_box.text().strip()
 
         if not bvid:
-            self.log_message("请输入有效的视频 bvid")
+            logging.info("请输入有效的视频 bvid")
             return
 
         if not bvid.startswith("BV") or len(bvid) < 6:
-            self.log_message("请输入有效的 Bilibili 视频 bvid (例如：BVxxxxxxxx)")
+            logging.info("请输入有效的 Bilibili 视频 bvid (例如：BVxxxxxxxx)")
             return
 
         try:
             avid = self.get_avid_from_bvid(bvid)
 
             if not avid:
-                self.log_message("获取 avid 失败，请检查 bvid 是否正确")
+                logging.info("获取 avid 失败，请检查 bvid 是否正确")
                 return
 
             self.current_bvid = bvid
             self.start_comment_processing([avid])
 
         except Exception as e:
-            self.log_message(f"发生错误: {str(e)}")
+            logging.error(f"发生错误: {str(e)}")
 
     def get_avid_from_bvid(self, bvid):
         """通过 Bilibili API 将 bvid 转换为 avid"""
@@ -484,10 +496,10 @@ class MainWindow(QWidget):
                 avid = data['data']['aid']
                 return avid
             else:
-                self.log_message(f"API 请求失败，状态码: {response.status_code}")
+                logging.error(f"API 请求失败，状态码: {response.status_code}")
                 return None
         except Exception as e:
-            self.log_message(f"获取 avid 失败: {str(e)}")
+            logging.error(f"获取 avid 失败: {str(e)}")
             return None
 
     def auto_get_videos(self):
@@ -497,10 +509,10 @@ class MainWindow(QWidget):
     def start_comment_processing(self, avids):
         """启动后台线程获取评论"""
         if self.processor_thread and self.processor_thread.is_alive():
-            self.log_message("已有一个任务正在进行，请稍候...")
+            logging.info("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
+        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.current_bvid,
                                                        parent=self)
         self.processor_thread.start()
 
@@ -512,7 +524,7 @@ class MainWindow(QWidget):
         """将当前 Avid 复制到剪贴板"""
         clipboard = QApplication.clipboard()
         clipboard.setText(self.current_avid_label.text().split(": ")[1])
-        self.log_message("Avid 已复制到剪贴板")
+        logging.info("Avid 已复制到剪贴板")
 
     def add_comment_to_table(self, reply, isp, rule):
         comment_text = reply['content']['message']
@@ -555,20 +567,6 @@ class MainWindow(QWidget):
         # 更新统计数据展示
         self.update_stats_label()
 
-        # 自动刷新饼图
-        self.update_pie_chart()
-
-    def log_message(self, message):
-        """日志显示，带时间戳和日志级别，并根据级别高亮显示"""
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # 获取当前时间
-        log_entry = f"[{current_time}] [GUI Log] {message}"  # 格式化日志内容
-
-        self.log_area.append(log_entry)  # 添加日志内容到日志窗口
-        self.log_area.moveCursor(QTextCursor.MoveOperation.End)
-
-        # 更新最后的日志时间
-        self.last_log_time = QTime.currentTime()
-
     def timerEvent(self, event):
         """定时器事件，用于检查队列并更新 UI"""
         try:
@@ -578,40 +576,14 @@ class MainWindow(QWidget):
         except queue.Empty:
             pass
 
-        try:
-            while True:
-                log_msg = self.log_queue.get_nowait()
-                self.log_message(log_msg)
-        except queue.Empty:
-            pass
-
     def check_for_timeout(self):
         """检查是否在 15 秒内无日志输出，超时则自动开始新任务"""
         if self.is_paused:
             return  # 如果当前任务暂停，不执行自动重启逻辑
 
-        # 检查日志中是否有 "*等待..s" 模式的内容
-        log_text = self.log_area.toPlainText()
-        wait_match = re.search(r"\*等待(\d+)s", log_text)
-
-        if wait_match:
-            wait_time = int(wait_match.group(1))  # 提取等待的秒数
-            self.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
-            self.is_paused = True
-
-            # 显示进度条并开始倒计时
-            self.progress_bar.setVisible(True)
-            self.progress_bar.setMaximum(wait_time)
-            self.progress_bar.setValue(wait_time)
-
-            # 使用定时器更新进度条
-            self.progress_timer = QTimer(self)
-            self.progress_timer.timeout.connect(self.update_progress_bar)
-            self.progress_timer.start(1000)  # 每秒更新一次
-
         # 检查是否超过 15 秒无日志更新
-        elif self.last_log_time and self.last_log_time.secsTo(QTime.currentTime()) > 15:
-            self.log_message("超时 15 秒，自动启动新任务...")
+        if self.last_log_time and self.last_log_time.secsTo(QTime.currentTime()) > 15:
+            logging.info("超时 15 秒，自动启动新任务...")
             self.auto_get_videos()
 
     def update_progress_bar(self):
@@ -636,7 +608,7 @@ class MainWindow(QWidget):
             token_count = gpt.get_today_gpt_usage()
             self.token_label.setText(f"今日已花费 GPT Tokens: {token_count}")
         except Exception as e:
-            self.log_message(f"更新GPT Token失败: {str(e)}")
+            logging.error(f"更新GPT Token失败: {str(e)}")
 
     def update_pie_chart(self):
         """更新饼图，显示违规原因占比"""
@@ -644,13 +616,14 @@ class MainWindow(QWidget):
 
         # 检查违规原因是否为空
         if not self.violation_reasons:
-            self.log_message("无违规原因数据，无法更新饼图")
+            logging.info("无违规原因数据，无法更新饼图")
+            self.canvas.draw()
             return
 
         if self.pie_chart_type_combo.currentText() == "违规原因占比":
             labels = list(self.violation_reasons.keys())
             data = list(self.violation_reasons.values())
-            self.log_message(f"更新饼图数据: {labels}, {data}")  # 调试输出
+            logging.debug(f"更新饼图数据: {labels}, {data}")  # 调试输出
 
             # 确保数据不为空再绘制饼图
             if data:
@@ -684,8 +657,9 @@ class MainWindow(QWidget):
 
         event.accept()  # 允许窗口关闭
 
+# 在主程序开始时添加日志信息
+logging.info("正在启动GUI，请稍等。。。")
 
-print("正在启动GUI，请稍等。。。")
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
