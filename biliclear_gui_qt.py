@@ -13,6 +13,7 @@ from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices, QColor
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
                              QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox, QProgressBar)
+
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -45,6 +46,13 @@ class QTextEditLogger(logging.Handler):
     def emit(self, record):
         """将日志信息格式化并输出到 QTextEdit，并根据日志内容更新进度条"""
         log_entry = self.format(record)
+        if record.levelno == logging.INFO:
+            self.log_area.setTextColor(QColor("white"))
+        elif record.levelno == logging.WARNING:
+            self.log_area.setTextColor(QColor("yellow"))
+        elif record.levelno == logging.ERROR:
+            self.log_area.setTextColor(QColor("red"))
+
         self.log_area.append(log_entry)
         self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
