@@ -20,17 +20,26 @@ def bilibiliAuth() -> str:
         "source": "main-fe-header",
     }
 
-    print("\n登录成功请按回车键...", end="")
-    syscmds.pause()
-    result_cookie = requests.get(
-        "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
-        params = params,
-        headers = headers
-    )
-    if result_cookie.json()["data"]["code"] == 0:
-        cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
-        print("\n获取cookie成功")
-        return "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
+    #print("\n登录成功请按回车键...", end="")
+    #syscmds.pause()
+    #自动判断登陆状态
+    while True:
+        time.sleep(0.5) #循环冷却
+        result_cookie = requests.get(
+            "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
+            params = params,
+            headers = headers
+        )
+        code = result_cookie.json()["data"]["code"]
+        if (code == 0): #正确
+            cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
+            print("\n获取cookie成功")
+            return "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
+        elif (code == 86038):
+            break; #二维码失效
+        elif (code == 86101 || code == 86090):
+            continue; #未扫描/未确认，继续等待
+        else:
+            break; #未知代码
     print("\n获取cookie失败:", result_cookie.json()["data"]["message"], "\n")
-    time.sleep(0.5)
     return bilibiliAuth()
