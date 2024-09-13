@@ -1,24 +1,9 @@
-#这段代码不由qaq_fei维护，问题请联系Felix3322
+# 这段代码不由qaq_fei维护，问题请联系Felix3322
 import os
-from datetime import datetime
-
-print("""
-     ██████╗ ████████╗██╗   ██╗██╗    ██████╗ ██╗   ██╗   
-    ██╔═══██╗╚══██╔══╝██║   ██║██║    ██╔══██╗╚██╗ ██╔╝   
-    ██║   ██║   ██║   ██║   ██║██║    ██████╔╝ ╚████╔╝    
-    ██║▄▄ ██║   ██║   ██║   ██║██║    ██╔══██╗  ╚██╔╝     
-    ╚██████╔╝   ██║   ╚██████╔╝██║    ██████╔╝   ██║      
-     ╚══▀▀═╝    ╚═╝    ╚═════╝ ╚═╝    ╚═════╝    ╚═╝      
-
- ██████╗ ██████╗         ██████╗ ██╗   ██╗███████╗███████╗
-██╔═══██╗██╔══██╗        ██╔══██╗██║   ██║██╔════╝██╔════╝
-██║   ██║██████╔╝        ██████╔╝██║   ██║█████╗  █████╗  
-██║   ██║██╔══██╗        ██╔══██╗██║   ██║██╔══╝  ██╔══╝  
-╚██████╔╝██████╔╝███████╗██████╔╝╚██████╔╝██║     ██║     
- ╚═════╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚═╝     
-
-正在导入库，请稍等。。。""")
 import re
+from datetime import datetime
+import logging
+from logging.handlers import TimedRotatingFileHandler
 import sys
 import queue
 import json
@@ -39,6 +24,46 @@ print("正在读取设置，初始化。。。")
 import biliclear
 import gpt
 
+# 日志目录
+LOG_DIR = './log'
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# 获取当前日期日志文件路径
+log_filename = os.path.join(LOG_DIR, datetime.now().strftime("%Y-%m-%d") + ".log")
+
+# 自定义的 Stream 处理器，将日志输出到 QTextEdit
+class QTextEditLogger(logging.Handler):
+    """自定义 Handler，用于将日志输出到 QTextEdit 中"""
+
+    def __init__(self, log_area):
+        super().__init__()
+        self.log_area = log_area
+
+    def emit(self, record):
+        """将日志信息格式化并输出到 QTextEdit"""
+        log_entry = self.format(record)
+        self.log_area.append(log_entry)
+        self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+
+def setup_logging(log_area):
+    """设置日志配置，输出到 QTextEdit 和日志文件"""
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    # 日志文件处理程序
+    file_handler = TimedRotatingFileHandler(log_filename, when="midnight", interval=1, backupCount=7, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+
+    # QTextEdit 输出处理程序
+    qt_handler = QTextEditLogger(log_area)
+    qt_handler.setLevel(logging.DEBUG)
+    qt_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    qt_handler.setFormatter(qt_formatter)
+    logger.addHandler(qt_handler)
 
 # 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
 plt.style.use('dark_background')
@@ -46,7 +71,6 @@ plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 print("正在加载函数，请稍等。。。")
 CONFIG_FILE = './config.json'
-
 
 def load_config():
     """加载配置文件"""
@@ -56,12 +80,10 @@ def load_config():
     else:
         return None
 
-
 def save_config(config):
     """保存配置文件"""
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
-
 
 class SettingsDialog(QDialog):
     """配置对话框，允许用户设置 GPT 和其他配置"""
@@ -119,7 +141,6 @@ class SettingsDialog(QDialog):
         save_config(self.config)
         QMessageBox.information(self, '设置已保存', '配置已成功保存！')
         self.close()
-
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
@@ -213,9 +234,8 @@ class MainWindow(QWidget):
 
         self.initUI()
 
-        # 将标准输出和错误输出重定向到日志窗口
-        sys.stdout = Stream(self.log_area)
-        sys.stderr = Stream(self.log_area)
+        # 初始化日志系统
+        setup_logging(self.log_area)
 
         # 定时器，每 100ms 检查一次队列的更新，更新 UI 和日志
         self.timer = self.startTimer(100)
@@ -518,6 +538,7 @@ class MainWindow(QWidget):
 
         # 更新最后的日志时间
         self.last_log_time = QTime.currentTime()
+
     def timerEvent(self, event):
         """定时器事件，用于检查队列并更新 UI"""
         try:
@@ -591,7 +612,6 @@ class MainWindow(QWidget):
         """更新饼图，显示违规原因占比"""
         self.ax.clear()
 
-
         if self.pie_chart_type_combo.currentText() == "违规原因占比":
             labels = list(self.violation_reasons.keys())
             data = list(self.violation_reasons.values())
@@ -624,26 +644,6 @@ class MainWindow(QWidget):
             self.processor_thread.join(timeout=1)  # 等待子线程结束
 
         event.accept()  # 允许窗口关闭
-
-
-class Stream:
-    def __init__(self, log_area):
-        self.log_area = log_area
-
-    def write(self, message):
-        """将输出消息格式化并显示在日志窗口"""
-        if message.strip():
-            # 获取当前时间
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            # 格式化日志信息，添加时间戳
-            formatted_message = f"[{current_time}] [Main Log] {message.strip()}"
-            # 将格式化后的日志显示在日志窗口
-            self.log_area.append(formatted_message)
-            self.log_area.moveCursor(QTextCursor.MoveOperation.End)
-
-    def flush(self):
-        """flush 是必须实现的空方法"""
-        pass
 
 
 print("正在启动GUI，请稍等。。。")

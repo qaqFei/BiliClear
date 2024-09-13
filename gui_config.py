@@ -8,7 +8,7 @@ from urllib.parse import quote_plus
 import requests
 
 
-def get_email_config():
+def get_config():
     app = QApplication(sys.argv)
     dialog = EmailConfigDialog()
     dialog.exec()
@@ -175,5 +175,5 @@ class EmailConfigDialog(QDialog):
 
 
 if __name__ == '__main__':
-    config = get_email_config()
+    config = get_config()
     print(config)
