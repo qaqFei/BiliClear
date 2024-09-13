@@ -1,4 +1,3 @@
-# 这段代码不由qaq_fei维护，问题请联系Felix3322
 import os
 import re
 from datetime import datetime
@@ -34,20 +33,43 @@ log_filename = os.path.join(LOG_DIR, datetime.now().strftime("%Y-%m-%d") + ".log
 
 # 自定义的 Stream 处理器，将日志输出到 QTextEdit
 class QTextEditLogger(logging.Handler):
-    """自定义 Handler，用于将日志输出到 QTextEdit 中"""
+    """自定义 Handler，用于将日志输出到 QTextEdit 中，并检查是否需要更新进度条"""
 
-    def __init__(self, log_area):
+    def __init__(self, log_area, progress_bar, progress_timer, parent):
         super().__init__()
         self.log_area = log_area
+        self.progress_bar = progress_bar
+        self.progress_timer = progress_timer
+        self.parent = parent
 
     def emit(self, record):
-        """将日志信息格式化并输出到 QTextEdit"""
+        """将日志信息格式化并输出到 QTextEdit，并根据日志内容更新进度条"""
         log_entry = self.format(record)
         self.log_area.append(log_entry)
         self.log_area.moveCursor(QTextCursor.MoveOperation.End)
 
-def setup_logging(log_area):
-    """设置日志配置，输出到 QTextEdit 和日志文件"""
+        # 检查日志中是否包含等待时间的提示
+        wait_match = re.search(r"\*等待(\d+)s", log_entry)
+        if wait_match:
+            wait_time = int(wait_match.group(1))
+            self.parent.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
+            self.parent.is_paused = True
+
+            # 显示进度条并开始倒计时
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setMaximum(wait_time)
+            self.progress_bar.setValue(wait_time)
+
+            # 启动进度条定时器
+            self.progress_timer.start(1000)
+        else:
+            # 没有等待提示，检查是否超过15秒无日志更新
+            if self.parent.last_log_time and self.parent.last_log_time.secsTo(QTime.currentTime()) > 15:
+                self.parent.log_message("超时 15 秒，自动启动新任务...")
+                self.parent.auto_get_videos()
+
+def setup_logging(log_area, progress_bar, progress_timer, parent):
+    """设置日志配置，输出到 QTextEdit 和日志文件，并添加进度条更新支持"""
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
@@ -58,8 +80,8 @@ def setup_logging(log_area):
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
-    # QTextEdit 输出处理程序
-    qt_handler = QTextEditLogger(log_area)
+    # QTextEdit 输出处理程序，并且绑定进度条的更新
+    qt_handler = QTextEditLogger(log_area, progress_bar, progress_timer, parent)
     qt_handler.setLevel(logging.DEBUG)
     qt_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     qt_handler.setFormatter(qt_formatter)
@@ -235,7 +257,7 @@ class MainWindow(QWidget):
         self.initUI()
 
         # 初始化日志系统
-        setup_logging(self.log_area)
+        setup_logging(self.log_area, self.progress_bar, self.progress_timer, self)
 
         # 定时器，每 100ms 检查一次队列的更新，更新 UI 和日志
         self.timer = self.startTimer(100)
@@ -598,7 +620,7 @@ class MainWindow(QWidget):
     def resume_auto_restart(self):
         """恢复自动任务重启"""
         self.is_paused = False
-        self.log_message("等待结束，恢复自动任务重启。")
+        logging.info("等待结束，恢复自动任务重启。")
 
     def update_token_usage(self):
         """更新GPT Token使用情况"""
@@ -612,10 +634,19 @@ class MainWindow(QWidget):
         """更新饼图，显示违规原因占比"""
         self.ax.clear()
 
+        # 检查违规原因是否为空
+        if not self.violation_reasons:
+            self.log_message("无违规原因数据，无法更新饼图")
+            return
+
         if self.pie_chart_type_combo.currentText() == "违规原因占比":
             labels = list(self.violation_reasons.keys())
             data = list(self.violation_reasons.values())
-            self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
+            self.log_message(f"更新饼图数据: {labels}, {data}")  # 调试输出
+
+            # 确保数据不为空再绘制饼图
+            if data:
+                self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
 
         self.ax.axis('equal')  # 保证饼图是圆形的
         self.canvas.draw()
@@ -650,4 +681,5 @@ print("正在启动GUI，请稍等。。。")
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
-    sys.exit(app.exec())
+    ret_code = app.exec()
+    sys.exit(ret_code)

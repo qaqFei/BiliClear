@@ -283,38 +283,43 @@ def replyIsViolations(reply: dict):
             enable_gpt = False
             saveConfig()
             logging.warning("GPT请求达到限制, 已关闭GPT检测")
-
     # lv.2用户头像检测（人脸检测）
-    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
-        "current_level"] == 2 and "@" in reply_msg:
-        avatar_image = requests.get(
-            reply["member"]["avatar"],
-            headers=headers
-        ).content
-        if _img_face(_btyes2cv2im(avatar_image)):  # 检测头像中的人脸
-            isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
-        logging.debug(f"lv.2和人脸检测, 结果: {isp}")
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"].get("current_level") == 2:
+        try:
+            avatar_image = requests.get(reply["member"]["avatar"], headers=headers).content
+            if _img_face(_btyes2cv2im(avatar_image)):  # 检测头像中的人脸
+                isp, r = True, "lv.2, 检测到头像中包含人脸, 可疑"
+            logging.debug(f"lv.2和人脸检测, 结果: {isp}")
+        except Exception as e:
+            logging.warning(f"头像检测时发生错误: {repr(e)}")
 
     # lv.2评论图片检测（二维码和人脸检测）
-    if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
-        # try:
-            # 获取评论中的图片并转换为OpenCV格式
-            images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
-            opencv_images = [_btyes2cv2im(image) for image in images]
+    if not isp and enable_check_replyimage and reply["member"]["level_info"].get("current_level") == 2:
+        try:
+            # 检查 "pictures" 键是否存在
+            if "pictures" in reply["content"]:
+                # 获取评论中的图片并转换为OpenCV格式
+                images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
+                opencv_images = [_btyes2cv2im(image) for image in images]
 
-            # 检测二维码
-            have_qrcode = any([cv2.QRCodeDetector().detect(img)[0] for img in opencv_images])
+                # 检测二维码
+                have_qrcode = any([cv2.QRCodeDetector().detect(img)[0] for img in opencv_images])
 
-            # 检测人脸
-            have_face = any([_img_face(img) for img in opencv_images])
+                # 检测人脸
+                have_face = any([_img_face(img) for img in opencv_images])
 
-            if have_qrcode or have_face:
-                isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
-            logging.debug(f"lv.2和二维码、人脸检测, 结果: {isp}")
-        # except Exception as e:
-        #     logging.warning(f"警告: 二维码或人脸检测时发生错误, 已跳过 {repr(e)}")
+                if have_qrcode or have_face:
+                    isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
+                logging.debug(f"lv.2和二维码、人脸检测, 结果: {isp}")
+            else:
+                logging.debug("评论中未检测到图片，跳过二维码和人脸检测。")
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"图片获取失败: {repr(e)}")
+        except Exception as e:
+            logging.warning(f"二维码或人脸检测时发生错误: {repr(e)}")
 
     return isp, r
+
 
 def processReply(reply: dict):
     "处理评论并举报"
