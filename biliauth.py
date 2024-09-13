@@ -19,7 +19,7 @@ def bilibiliAuth() -> str:
         "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
         headers = headers
     ).json()
-    qr_url = f"https://tool.oschina.net/action/qrcode/generate?data={quote_plus(result["data"]["url"])}&output=image/png&error=M&type=0&margin=4&size=4"
+    qr_url = f"https://tool.oschina.net/action/qrcode/generate?data={quote_plus(result['data']['url'])}&output=image/png&error=M&type=0&margin=4&size=4"
     qrcode_window = tkinter.Tk()
     qrcode_window.title("请使用B站扫码登录")
     qrcode_window.iconbitmap("res/icon.ico")
