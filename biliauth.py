@@ -49,7 +49,6 @@ def bilibiliAuth() -> str:
                 cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
                 print("\n获取cookie成功")
                 cookie = "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
-                qrcode_window.destroy()
                 return None
             time.sleep(0.4)
     
