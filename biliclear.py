@@ -28,7 +28,6 @@ def saveConfig():
         f.write(json.dumps({
             "headers": headers,
             "bili_report_api": bili_report_api,
-            "csrf": csrf,
             "reply_limit": reply_limit,
             "enable_gpt": enable_gpt,
             "gpt_apibase": gpt.openai.api_base,
@@ -48,7 +47,7 @@ def putConfigVariables(config: dict):
     
     headers = config["headers"]
     bili_report_api = config.get("bili_report_api", True)
-    csrf = config.get("csrf", getCsrf(headers["Cookie"]))
+    csrf = getCsrf(headers["Cookie"])
     reply_limit = config.get("reply_limit", 100)
     enable_gpt = config.get("enable_gpt", False)
     gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
@@ -64,10 +63,8 @@ def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
     except IndexError:
-        print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
-        print("请按回车键退出...")
-        syscmds.pause()
-        raise SystemExit
+        print("警告: 无法获取csrf")
+        return ""
 
 def getCookieFromUser():
     if not environ.get("gui", False):
