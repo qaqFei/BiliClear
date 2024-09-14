@@ -771,7 +771,7 @@ class MainWindow(QMainWindow):
 
         # 检查违规原因是否为空
         if not self.violation_reasons:
-            logging.info("无违规原因数据，无法更新饼图")
+            logging.debug("无违规原因数据，无法更新饼图")
             self.canvas.draw()
             return
 
