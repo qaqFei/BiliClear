@@ -377,7 +377,7 @@ def checkNewVideos():
     print()  # next line
 
     for avid in getVideos():
-        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
@@ -415,12 +415,11 @@ if __name__ == "__main__":
     _setMethod()
     while True:
         try:
-            match method:
-                case "1":
-                    checkNewVideos()
-                case "2":
+            if method == "1":
+                checkNewVideos()
+            elif method == "2":
                     checkVideo(input("\n输入视频bvid: "))
-                case _:
+            else:
                     print("链接格式错误")
         except Exception as e:
             print("错误", repr(e))
