@@ -67,13 +67,58 @@ class Checker:
             return avg_score >= threshold, "规则相似程度匹配"
         
         return False, ""
+
+    def check_v4(self, text: str, threshold: float = 0.7):
+        "检查字符串, 计算跳词进行判断 threshold: 相似程度阈值"
+        text = self.normalize_text(text)
+        match_scores = []
+        for item in self.rules_exact:
+            sentence = []
+            for keyword in item:
+                pattern = r""
+                if keyword != "" and len(keyword) >= 2:
+                    for char in keyword:
+                        if char != "": pattern = pattern + char + r".*"
+                if pattern != "" and len(pattern) > 2:
+                    pattern = pattern[:-2]
+                    sentence.append(pattern)
+            if len(sentence) != 0 and all("$" not in x and ".." not in x for x in sentence):
+                match_scores.append(sentence)
+        value = 0.0
+        for patterns in match_scores:
+            allowadd = True
+            count = 0
+            start_char = ""
+            end_char = ""
+            for pattern in patterns:
+                match = re.search(pattern, text)
+                if match is None or match.group() == "":
+                    allowadd = False
+                    break
+                value = value + len(pattern.replace(r".*", "")) / (len(match.group()) * 1.25)
+                if count < 1:
+                    start_char = match.group()
+                count = count + 1
+                end_char = match.group()
+                  
+            if allowadd:
+                start_index = text.index(start_char) + len(start_char)
+                end_index = text.rindex(end_char)
+                vvalue = len(text[start_index:end_index]) / (len(text) - (len(start_char) + len(end_char)) / 2)
+                value = (vvalue * 1.25 + value) / 2
+                break
+            else:
+                value = 0.0
+                continue
+        return (False, "") if (value < threshold) else (True, "跳词规则程度匹配")
     
     def check(self, text: str, threshold: float = 0.7):
         "使用使用方法检查字符串"
         checks: list[tuple[bool, str]] = [
             self.check_v1(text),
             self.check_v2(text, threshold),
-            self.check_v3(text, threshold)
+            self.check_v3(text, threshold),
+            self.check_v4(text, threshold)
         ]
         for isp, r in checks:
             if isp:
