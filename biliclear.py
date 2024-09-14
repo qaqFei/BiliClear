@@ -1,5 +1,5 @@
 import json
-import re  # used for rules matching
+import re
 import sys
 import time
 from datetime import datetime
@@ -16,149 +16,163 @@ import gui_config
 import syscmds
 import checker
 from compatible_getpass import getpass
+import logging
 
-sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
+# 全局变量，用于在 GUI 环境下记录日志
+gui_log = None
+
+# 日志配置，如果是非 GUI 模式下
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+sys.excepthook = lambda *args: [logging.error("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
 
 def saveConfig():
-    with open("./config.json", "w", encoding="utf-8") as f:
-        f.write(json.dumps({
-            "headers": headers,
-            "bili_report_api": bili_report_api,
-            "csrf": csrf,
-            "reply_limit": reply_limit,
-            "enable_gpt": enable_gpt,
-            "gpt_apibase": gpt.openai.api_base,
-            "gpt_proxy": gpt.openai.proxy,
-            "gpt_apikey": gpt.openai.api_key,
-            "gpt_model": gpt.gpt_model,
-            "enable_check_lv2avatarat": enable_check_lv2avatarat,
-            "enable_check_replyimage": enable_check_replyimage
-        }, indent=4, ensure_ascii=False))
+    try:
+        with open("./config.json", "w", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "headers": headers,
+                "bili_report_api": bili_report_api,
+                "csrf": csrf,
+                "reply_limit": reply_limit,
+                "enable_gpt": enable_gpt,
+                "gpt_apibase": gpt.openai.api_base,
+                "gpt_proxy": gpt.openai.proxy,
+                "gpt_apikey": gpt.openai.api_key,
+                "gpt_model": gpt.gpt_model,
+                "enable_check_lv2avatarat": enable_check_lv2avatarat,
+                "enable_check_replyimage": enable_check_replyimage
+            }, indent=4, ensure_ascii=False))
+        logging.info("配置文件保存成功")
+    except Exception as e:
+        logging.error(f"保存config.json失败, 错误: {e}")
 
-def putConfigVariables(config: dict):
+def loadConfig():
     global headers
     global bili_report_api, csrf
     global reply_limit, enable_gpt
     global enable_check_lv2avatarat
     global enable_check_replyimage
-    
-    headers = config["headers"]
-    bili_report_api = config.get("bili_report_api", True)
-    csrf = config.get("csrf", getCsrf(headers["Cookie"]))
-    reply_limit = config.get("reply_limit", 100)
-    enable_gpt = config.get("enable_gpt", False)
-    gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
-    gpt.openai.proxy = config.get("gpt_proxy", gpt.openai.proxy)
-    gpt.openai.api_key = config.get("gpt_apikey", "")
-    gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
-    enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
-    enable_check_replyimage = config.get("enable_check_replyimage", True)
-    if reply_limit <= 20:
-        reply_limit = 100
-    
+
+    try:
+        config = json.load(f)
+        headers = config["headers"]
+        bili_report_api = config.get("bili_report_api", False)
+        csrf = config.get("csrf", getCsrf(headers["Cookie"]))
+        reply_limit = config.get("reply_limit", 100)
+        enable_gpt = config.get("enable_gpt", False)
+        gpt.openai.api_base = config.get("gpt_apibase", gpt.openai.api_base)
+        gpt.openai.proxy = config.get("gpt_proxy", gpt.openai.proxy)
+        gpt.openai.api_key = config.get("gpt_apikey", "")
+        gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
+        enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
+        enable_check_replyimage = config.get("enable_check_replyimage", False)
+        if reply_limit <= 20:
+            reply_limit = 100
+        logging.info("配置文件加载成功")
+    except Exception as e:
+        logging.error(f"加载config.json失败, 错误: {repr(e)}")
+
 def getCsrf(cookie: str):
     try:
         return re.findall(r"bili_jct=(.*?);", cookie)[0]
-    except:
-        print("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
-        print("请按回车键退出...")
+    except IndexError:
+        logging.error("Bilibili Cookie格式错误, 重启BiliClear或删除config.json")
         syscmds.pause()
         raise SystemExit
 
 def getCookieFromUser():
-    if not environ.get("gui", False):
-        if "n" in input("是否使用二维码登录B站, 默认为是(y/n): ").lower():
+    if not environ.get("qt_gui", False):
+        if "n" in input("\n是否使用二维码登录B站, 默认为是(y/n): ").lower():
             return getpass("Bilibili cookie: ")
         else:
             return biliauth.bilibiliAuth()
 
 def checkCookie():
-    result = requests.get(
-        "https://passport.bilibili.com/x/passport-login/web/cookie/info",
-        headers = headers,
-        data = {
-            "csrf": csrf
-        }
-    ).json()
-    return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
+    try:
+        result = requests.get(
+            "https://passport.bilibili.com/x/passport-login/web/cookie/info",
+            headers=headers,
+            data={
+                "csrf": csrf
+            }
+        ).json()
+        return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
+    except Exception as e:
+        logging.error(f"检查 Cookie 失败: {e}")
+        return False
 
 if not exists("./config.json"):
-    if not environ.get("gui", False):
+    if not environ.get("qt_gui", False):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             "Cookie": getCookieFromUser()
         }
 
         csrf = getCsrf(headers["Cookie"])
-
-        bili_report_api = True
+        bili_report_api = "y" in input("是否额外使用B站评论举报API进行举报, 默认为否(y/n): ").lower()
         reply_limit = 100
         enable_gpt = False
         gpt.openai.api_key = ""
         gpt.gpt_model = "gpt-4o-mini"
         enable_check_lv2avatarat = False
-        enable_check_replyimage = True
-    else:
+        enable_check_replyimage = False
+    else: # 此else分支不由 qaqFei 维护
+        config = gui_config.get_config()
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-            "Cookie": getCookieFromUser()
+            "Cookie": config["cookie"]
         }
-        mdict = gui_config.get_email_config({
-            "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
-            "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
-            "@sina.com": {"server": "smtp.sina.com.cn", "port": 465},
-            "@tom.com": {"server": "smtp.tom.com", "port": 465},
-            "@163.com": {"server": "smtp.163.com", "port": 465},
-            "@126.com": {"server": "smtp.126.com", "port": 465},
-            "@yahoo.com": {"server": "smtp.mail.yahoo.com", "port": 465},
-            "@foxmail.com": {"server": "smtp.qq.com", "port": 465},
-            "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
-            "@hotmail.com": {"server": "smtp.live.com", "port": 587},
-            "@outlook.com": {"server": "smtp.office365.com", "port": 587},
-            "@qq.com": {"server": "smtp.qq.com", "port": 465}
-        })
-        mdict['headers'] = headers
-        putConfigVariables(mdict)
+        csrf = getCsrf(headers["Cookie"])
+        bili_report_api = config["bili_report_api"]
+        reply_limit = config["reply_limit"]
+        enable_gpt = config["enable_gpt"]
+        gpt.openai.api_key = config["gpt_api_key"]
+        gpt.gpt_model = config["gpt_model"]
+        enable_check_lv2avatarat = config["enable_check_lv2avatarat"]
+        enable_check_replyimage = config["enable_check_replyimage"]
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
-            putConfigVariables(json.load(f))
+            loadConfig()
         except Exception as e:
-            print("加载config.json失败, 请删除或修改config.json, 错误:", repr(e))
-            print("如果你之前更新过BiliClear, 请删除config.json并重新运行")
-            print("请按回车键退出...")
+            logging.error(f"加载config.json失败, 错误: {repr(e)}")
             syscmds.pause()
             raise SystemExit
 
 if not checkCookie():
-    print("bilibili cookie已过期或失效, 请重新登录")
+    logging.warning("bilibili cookie已过期或失效, 请重新登录")
     headers["Cookie"] = getCookieFromUser()
     csrf = getCsrf(headers["Cookie"])
 
 try:
     saveConfig()
 except Exception as e:
-    print("警告: 保存config.json失败, 错误:", e)
+    logging.error(f"保存config.json失败, 错误: {e}")
 
 text_checker = checker.Checker()
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
 
-if not environ.get("gui", False):
+if not environ.get("qt_gui", False): # if gui is webui, it will wait, because 2 people is not the same brain.
     loaded_sleep_time = 3.0
-    print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
+    logging.info(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
     time.sleep(loaded_sleep_time)
     syscmds.clearScreen()
 
 def _btyes2cv2im(byte_data):
+    # 将二进制数据转换为OpenCV图像格式
     nparr = np.frombuffer(byte_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return img
 
-def _img_face(img: cv2.typing.MatLike):
+def _img_face(img):
     return not isinstance(
         face_detector.detectMultiScale(
             cv2.cvtColor(img, cv2.COLOR_BGR2GRAY),
@@ -166,9 +180,6 @@ def _img_face(img: cv2.typing.MatLike):
         ),
         tuple
     )
-
-def _img_qrcode(img: cv2.typing.MatLike):
-    return cv2.QRCodeDetector().detect(img)[0]
 
 def getVideos():
     "获取推荐视频列表"
@@ -187,7 +198,7 @@ def getReplys(avid: str | int):
         time.sleep(0.4)
         result = requests.get(
             f"https://api.bilibili.com/x/v2/reply?type=1&oid={avid}&nohot=1&pn={page}&ps=20",
-            headers = headers
+            headers=headers
         ).json()
         try:
             if not result["data"]["replies"]:
@@ -198,43 +209,6 @@ def getReplys(avid: str | int):
         page += 1
     return replies
 
-def checkUser(uid: int):
-    "检查用户是否需要举报"
-    user_crad = requests.get(
-        f"https://api.bilibili.com/x/web-interface/card?mid={uid}",
-        headers = headers
-    ).json()["data"]["card"]
-    
-    if user_crad["spacesta"] == -2:
-        return False # 封了, 没必要
-    
-    if user_crad["level_info"]["current_level"] != 2:
-        return False # 不是 lv.2, 没必要
-    
-    dynamics = [i["modules"]["module_dynamic"] for i in requests.get(
-        f"https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all?host_mid={uid}",
-        headers = headers
-    ).json()["data"]["items"]]
-    
-    for dynamic in dynamics:
-        if dynamic["desc"] is None:
-            continue
-        
-        text = dynamic["desc"]["text"]
-        if isPorn(text):
-            return True
-        
-        if dynamic["major"] is None:
-            continue
-        elif dynamic["major"]["type"] != "MAJOR_TYPE_DRAW":
-            continue
-        
-        ims = [_btyes2cv2im(requests.get(i["src"]).content) for i in dynamic["major"]["draw"]["items"]]
-        if any([_img_qrcode(img) for img in ims]):
-            return True
-    
-    return False
-        
 def isPorn(text: str):
     "判断评论是否为色情内容 (使用规则, rules.yaml)"
     return text_checker.check(text)
@@ -260,22 +234,35 @@ def reqBiliReportReply(data: dict, rule: str | None):
     time.sleep(3.5)
     result_code = result["code"]
     if result_code not in (0, 12019):
-        print("b站举报API调用失败, 返回体：", result)
+        logging.error(f"b站举报API调用失败, 返回体：{result}")
     elif result_code == 0:
-        print("Bilibili举报API调用成功")
+        logging.info("Bilibili举报API调用成功")
     elif result_code == 12019:
-        print("举报过于频繁, 等待15s")
-        time.sleep(15)
+        logging.warning("举报过于频繁, 等待60s")
+        time.sleep(60)
         return reqBiliReportReply(data, rule)
 
 def reportReply(data: dict, r: str | None):
-    print("\n违规评论:", repr(data["content"]["message"]))
-    print("规则:", r)
+    "举报评论"
+    report_text = f"""
+违规用户UID：{data["mid"]}
+违规信息发布形式：评论, (动态)
+问题描述：破坏了B站和互联网的和谐环境
+诉求：移除违规内容，封禁账号
+
+评论数据内容(B站API返回, x/v2/reply):
+`
+{json.dumps(data, ensure_ascii=False, indent=4)}
+`
+
+(此举报信息自动生成, 可能会存在误报)
+评论内容匹配到的规则: {r}
+"""
+    logging.info(f"违规评论: {repr(data['content']['message'])}")
+    logging.info(f"规则: {r}")
 
     if bili_report_api:
         reqBiliReportReply(data, r)
-
-    print()  # next line
 
 def replyIsViolations(reply: dict):
     "判断评论是否违规, 返回: (是否违规, 违规原因) 如果没有违规, 返回 (False, None)"
@@ -287,39 +274,52 @@ def replyIsViolations(reply: dict):
     if "doge" in reply_msg:
         return False, None
 
+    # 使用 GPT 进行内容检测
     if not isp and enable_gpt:
         try:
             isp, r = gpt.gpt_porn(reply_msg) or gpt.gpt_ad(reply_msg), f"ChatGpt - {gpt.gpt_model} 检测到违规内容"
-            print(f"调用GPT进行检测, 结果: {isp}")
+            logging.debug(f"调用GPT进行检测, 结果: {isp}")
         except gpt.RateLimitError:
             enable_gpt = False
             saveConfig()
-            print("GPT请求达到限制, 已关闭GPT检测")
-
-    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"][
-        "current_level"] == 2 and "@" in reply_msg:
-        avatar_image = requests.get(
-            reply["member"]["avatar"],
-            headers=headers
-        ).content
-        if _img_face(_btyes2cv2im(avatar_image)):
-            isp, r = True, "lv.2, 检测到头像中包含人脸,可疑"
-        print(f"lv.2和人脸检测, 结果: {isp}")
-
-    if not isp and enable_check_replyimage and reply["member"]["level_info"]["current_level"] == 2:
+            logging.warning("GPT请求达到限制, 已关闭GPT检测")
+    # lv.2用户头像检测（人脸检测）
+    if not isp and enable_check_lv2avatarat and reply["member"]["level_info"].get("current_level") == 2:
         try:
-            images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"].get("pictures", [])]
-            opencv_images = [_btyes2cv2im(img) for img in images]
-            have_qrcode = any([_img_qrcode(img) for img in opencv_images])
-            have_face = any([_img_face(img) for img in opencv_images])
-
-            if have_qrcode or have_face:
-                isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
-            print(f"lv.2和二维码、人脸检测, 结果: {isp}")
+            avatar_image = requests.get(reply["member"]["avatar"], headers=headers).content
+            if _img_face(_btyes2cv2im(avatar_image)):  # 检测头像中的人脸
+                isp, r = True, "lv.2, 检测到头像中包含人脸, 可疑"
+            logging.debug(f"lv.2和人脸检测, 结果: {isp}")
         except Exception as e:
-            print("警告: 二维码或人脸检测时发生错误, 已跳过", repr(e))
+            logging.warning(f"头像检测时发生错误: {repr(e)}")
+
+    # lv.2评论图片检测（二维码和人脸检测）
+    if not isp and enable_check_replyimage and reply["member"]["level_info"].get("current_level") == 2:
+        try:
+            # 检查 "pictures" 键是否存在
+            if "pictures" in reply["content"]:
+                # 获取评论中的图片并转换为OpenCV格式
+                images = [requests.get(i["img_src"], headers=headers).content for i in reply["content"]["pictures"]]
+                opencv_images = [_btyes2cv2im(image) for image in images]
+
+                # 检测二维码
+                have_qrcode = any([cv2.QRCodeDetector().detect(img)[0] for img in opencv_images])
+
+                # 检测人脸
+                have_face = any([_img_face(img) for img in opencv_images])
+
+                if have_qrcode or have_face:
+                    isp, r = True, "lv.2, 检测到评论中包含二维码或人脸, 可疑"
+                logging.debug(f"lv.2和二维码、人脸检测, 结果: {isp}")
+            else:
+                logging.debug("评论中未检测到图片，跳过二维码和人脸检测。")
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"图片获取失败: {repr(e)}")
+        except Exception as e:
+            logging.warning(f"二维码或人脸检测时发生错误: {repr(e)}")
 
     return isp, r
+
 
 def processReply(reply: dict):
     "处理评论并举报"
@@ -358,7 +358,7 @@ def _setMethod():
 
     while method not in method_choices.keys():
         if method is not None:
-            print("输入错误")
+            logging.error("输入错误")
 
         print("tip: 请定期检查bilibili cookie是否过期 (BiliClear启动时会自动检查)\n")
         for k, v in method_choices.items():
@@ -369,7 +369,7 @@ def _setMethod():
 def bvid2avid(bvid: str):
     result = requests.get(
         f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}",
-        headers = headers
+        headers=headers
     ).json()
     return result["data"]["aid"]
 
@@ -382,7 +382,6 @@ checkedVideos = []
 checkedReplies = []
 violationsReplies = []
 
-
 def _checkVideo(avid: str | int):
     processVideo(avid)
     for reply in getReplys(avid):
@@ -391,15 +390,13 @@ def _checkVideo(avid: str | int):
 def checkNewVideos():
     global videoCount, replyCount, violationsReplyCount, checkedVideos
 
-    print("".join([("\n" if videoCount != 0 else ""), "开始检查新一轮推荐视频..."]))
-    print(f"已检查视频: {videoCount}")
-    print(f"已检查评论: {replyCount}")
-    print(
-        f"已举报评论: {violationsReplyCount} 评论违规率: {((violationsReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
-    print()  # next line
+    logging.info("开始检查新一轮推荐视频...")
+    logging.info(f"已检查视频: {videoCount}")
+    logging.info(f"已检查评论: {replyCount}")
+    logging.info(f"已举报评论: {violationsReplyCount} 评论违规率: {((violationsReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
 
     for avid in getVideos():
-        print(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logging.info(f"开始检查视频: av{avid}, 现在时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         _checkVideo(avid)
         videoCount += 1
         checkedVideos.insert(0, (avid, time.time()))
@@ -423,11 +420,11 @@ def waitRiskControl(output: bool = True):
     stopMinute = 3
     waitRiskControl_TimeRemaining = 60 * stopMinute
     waitingRiskControl = True
-    print(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
+    logging.warning(f"警告!!! B站API返回了非JSON格式数据, 大概率被风控, 暂停{stopMinute}分钟...")
     while time.time() - stopSt < 60 * stopMinute:
         waitRiskControl_TimeRemaining = 60 * stopMinute - (time.time() - stopSt)
         if output:
-            print(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
+            logging.warning(f"由于可能被风控, BiliClear暂停{stopMinute}分钟, 还剩余: {waitRiskControl_TimeRemaining:.2f}s")
             time.sleep(1.5)
         else:
             time.sleep(0.005)
@@ -443,8 +440,8 @@ if __name__ == "__main__":
                 case "2":
                     checkVideo(input("\n输入视频bvid: "))
                 case _:
-                    print("链接格式错误")
+                    logging.error("链接格式错误")
         except Exception as e:
-            print("错误", repr(e))
+            logging.error(f"错误 {repr(e)}")
             if isinstance(e, json.JSONDecodeError):
                 waitRiskControl()
