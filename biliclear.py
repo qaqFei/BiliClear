@@ -20,7 +20,8 @@ from compatible_getpass import getpass
 sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if KeyboardInterrupt in args[0].mro() else sys.__excepthook__(*args)
 
 selfdir = dirname(sys.argv[0])
-if selfdir == "": selfdir = abspath(".")
+if selfdir == "": 
+    selfdir = abspath(".")
 chdir(selfdir)
 
 def saveConfig():
@@ -152,7 +153,7 @@ def getVideos():
     "获取推荐视频列表"
     return [
         i["param"]
-        for i in requests.get(f"https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
+        for i in requests.get("https://app.bilibili.com/x/v2/feed/index", headers=headers).json()["data"]["items"]
         if i.get("can_play", 0)
     ]
 

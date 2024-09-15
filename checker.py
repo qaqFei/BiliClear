@@ -78,7 +78,8 @@ class Checker:
                 pattern = r""
                 if keyword != "" and len(keyword) >= 2:
                     for char in keyword:
-                        if char != "": pattern = pattern + char + r".*"
+                        if char != "": 
+                            pattern = pattern + char + r".*"
                 if pattern != "" and len(pattern) > 2:
                     pattern = pattern[:-2]
                     sentence.append(pattern)

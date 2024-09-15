@@ -34,7 +34,6 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from os import environ
-import threading
 import concurrent.futures
 environ["gui"] = "enable"
 print("正在读取设置，初始化。。。")

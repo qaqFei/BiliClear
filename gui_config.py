@@ -1,6 +1,5 @@
-import sys
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, \
+from PyQt6.QtWidgets import QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, \
     QCheckBox, QDialog
 from PyQt6.QtCore import QUrl, Qt, QTimer
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -9,7 +8,6 @@ import requests
 
 
 def get_email_config(smtps):
-    app = QApplication(sys.argv)
     dialog = EmailConfigDialog(smtps)
     dialog.exec()
 

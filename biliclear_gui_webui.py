@@ -69,7 +69,7 @@ def render():
             font = f"{(w + h) / 125}px BiliClear_UIFont",
             textAlign = "left",
             textBaseline = "top",
-            fillStyle = f"#FFFFFFEE",
+            fillStyle = "#FFFFFFEE",
             wait_execute = True
         )
         
@@ -99,11 +99,11 @@ def render():
         root.create_text(
             w * 0.02,
             h * 0.25,
-            text = f"tip: Ctrl + I 可以手动输入bv号进行检查并举报违规内容",
+            text = "tip: Ctrl + I 可以手动输入bv号进行检查并举报违规内容",
             font = f"{(w + h) / 100}px BiliClear_UIFont",
             textAlign = "left",
             textBaseline = "top",
-            fillStyle = f"#FFFFFF88",
+            fillStyle = "#FFFFFF88",
             wait_execute = True
         )
         
@@ -232,7 +232,8 @@ w, h = int(root.winfo_screenwidth() * 0.65), int(root.winfo_screenheight() * 0.6
 root.resize(w, h)
 w_legacy, h_legacy = root.winfo_legacywindowwidth(), root.winfo_legacywindowheight()
 dw_legacy, dh_legacy = w - w_legacy, h - h_legacy
-dw_legacy *= webdpr; dh_legacy *= webdpr
+dw_legacy *= webdpr
+dh_legacy *= webdpr
 dw_legacy, dh_legacy = int(dw_legacy), int(dh_legacy)
 del w_legacy, h_legacy
 root.resize(w + dw_legacy, h + dh_legacy)

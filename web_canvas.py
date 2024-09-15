@@ -12,7 +12,8 @@ import time
 import webview
 
 selfdir = dirname(argv[0])
-if selfdir == "": selfdir = abspath(".")
+if selfdir == "": 
+    selfdir = abspath(".")
 chdir(selfdir)
 
 current_thread = threading.current_thread
