@@ -1,6 +1,14 @@
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, \
-    QCheckBox, QDialog
+from PyQt6.QtWidgets import (
+    QLabel,
+    QLineEdit,
+    QVBoxLayout,
+    QHBoxLayout,
+    QComboBox,
+    QPushButton,
+    QCheckBox,
+    QDialog,
+)
 from PyQt6.QtCore import QUrl, Qt, QTimer
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from urllib.parse import quote_plus
@@ -24,30 +32,32 @@ class EmailConfigDialog(QDialog):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('BiliClear 初始化配置')
-        self.setWindowIcon(QIcon('./res/icon.ico'))
+        self.setWindowTitle("BiliClear 初始化配置")
+        self.setWindowIcon(QIcon("./res/icon.ico"))
         self.setGeometry(100, 100, 800, 500)  # 窗口调整为800宽度
 
         # 左侧表单布局
         form_layout = QVBoxLayout()
 
         # 发送者邮箱
-        self.sender_email_label = QLabel('发送者邮箱:')
+        self.sender_email_label = QLabel("发送者邮箱:")
         self.sender_email_input = QLineEdit(self)
-        self.sender_email_input.setPlaceholderText("可自动识别常见SMTP服务器信息，请先输入邮箱")
+        self.sender_email_input.setPlaceholderText(
+            "可自动识别常见SMTP服务器信息，请先输入邮箱"
+        )
         self.sender_email_input.textChanged.connect(self.auto_select_smtp_server)
         form_layout.addWidget(self.sender_email_label)
         form_layout.addWidget(self.sender_email_input)
 
         # 发送者密码
-        self.sender_password_label = QLabel('发送者密码:')
+        self.sender_password_label = QLabel("发送者密码:")
         self.sender_password_input = QLineEdit(self)
         self.sender_password_input.setEchoMode(QLineEdit.EchoMode.Password)
         form_layout.addWidget(self.sender_password_label)
         form_layout.addWidget(self.sender_password_input)
 
         # SMTP服务器（下拉框）
-        self.smtp_server_label = QLabel('SMTP服务器:')
+        self.smtp_server_label = QLabel("SMTP服务器:")
         self.smtp_server_combo = QComboBox(self)
         self.smtp_server_combo.addItem("可自动识别")  # 当未识别时，显示这个
         self.smtp_server_combo.addItem("其他")  # 允许自定义
@@ -57,11 +67,13 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.smtp_server_combo)
 
         # SMTP端口（下拉框）
-        self.smtp_port_label = QLabel('SMTP端口:')
+        self.smtp_port_label = QLabel("SMTP端口:")
         self.smtp_port_combo = QComboBox(self)
         self.smtp_port_combo.addItem("可自动识别")  # 当未识别时显示
         self.smtp_port_combo.addItem("其他")  # 允许自定义
-        self.smtp_port_combo.currentIndexChanged.connect(self.handle_custom_port_selection)
+        self.smtp_port_combo.currentIndexChanged.connect(
+            self.handle_custom_port_selection
+        )
         form_layout.addWidget(self.smtp_port_label)
         form_layout.addWidget(self.smtp_port_combo)
 
@@ -78,26 +90,26 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.custom_smtp_port_input)
 
         # B站举报API 使用
-        self.bili_report_api_label = QLabel('是否使用B站评论举报API进行举报:')
-        self.bili_report_api_checkbox = QCheckBox('启用B站举报API')
+        self.bili_report_api_label = QLabel("是否使用B站评论举报API进行举报:")
+        self.bili_report_api_checkbox = QCheckBox("启用B站举报API")
         self.bili_report_api_checkbox.setChecked(True)
         form_layout.addWidget(self.bili_report_api_label)
         form_layout.addWidget(self.bili_report_api_checkbox)
 
         # 回复限制数
-        self.reply_limit_label = QLabel('回复限制数 (默认100):')
+        self.reply_limit_label = QLabel("回复限制数 (默认100):")
         self.reply_limit_input = QLineEdit(self)
         self.reply_limit_input.setText("100")  # 默认值设置为100
         form_layout.addWidget(self.reply_limit_label)
         form_layout.addWidget(self.reply_limit_input)
 
         # GPT相关配置（下拉框）
-        self.enable_gpt_checkbox = QCheckBox('启用GPT')
-        self.gpt_model_label = QLabel('选择GPT模型:')
+        self.enable_gpt_checkbox = QCheckBox("启用GPT")
+        self.gpt_model_label = QLabel("选择GPT模型:")
         self.gpt_model_combo = QComboBox(self)
         gpt_models = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4"]
         self.gpt_model_combo.addItems(gpt_models)
-        self.gpt_api_key_label = QLabel('GPT API Key:')
+        self.gpt_api_key_label = QLabel("GPT API Key:")
         self.gpt_api_key_input = QLineEdit(self)
 
         form_layout.addWidget(self.enable_gpt_checkbox)
@@ -107,9 +119,11 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.gpt_api_key_input)
 
         # 其他配置
-        self.enable_email_checkbox = QCheckBox('启用邮件报告（图一乐，目前B站取消了邮箱举报功能）')
-        self.enable_check_lv2avatarat_checkbox = QCheckBox('启用检查Lv2头像')
-        self.enable_check_replyimage_checkbox = QCheckBox('启用检查回复图片')
+        self.enable_email_checkbox = QCheckBox(
+            "启用邮件报告（图一乐，目前B站取消了邮箱举报功能）"
+        )
+        self.enable_check_lv2avatarat_checkbox = QCheckBox("启用检查Lv2头像")
+        self.enable_check_replyimage_checkbox = QCheckBox("启用检查回复图片")
 
         # 默认启用选项
         self.enable_check_lv2avatarat_checkbox.setChecked(True)
@@ -120,14 +134,14 @@ class EmailConfigDialog(QDialog):
         form_layout.addWidget(self.enable_check_replyimage_checkbox)
 
         # 提交按钮（初始为灰色）
-        self.submit_button = QPushButton('提交', self)
+        self.submit_button = QPushButton("提交", self)
         self.submit_button.setEnabled(False)  # 初始为不可用
         self.submit_button.clicked.connect(self.submit_form)  # 绑定提交按钮的事件
         form_layout.addWidget(self.submit_button)
 
         # 右侧二维码布局
         qr_layout = QVBoxLayout()
-        self.qr_label = QLabel('请使用哔哩哔哩扫码获取cookie', self)
+        self.qr_label = QLabel("请使用哔哩哔哩扫码获取cookie", self)
         self.qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中显示
         qr_layout.addWidget(self.qr_label)
 
@@ -135,7 +149,7 @@ class EmailConfigDialog(QDialog):
         self.qr_view.setMinimumSize(300, 300)  # 设置二维码的大小
         qr_layout.addWidget(self.qr_view)
 
-        self.cookie_status_label = QLabel('Cookie未获取', self)
+        self.cookie_status_label = QLabel("Cookie未获取", self)
         self.cookie_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中显示
         qr_layout.addWidget(self.cookie_status_label)
 
@@ -156,11 +170,11 @@ class EmailConfigDialog(QDialog):
 
     def load_qr_code(self):
         # 获取B站二维码登录的链接并加载二维码
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
-        result = requests.get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
-                              headers=headers).json()
+        headers = {"User-Agent": "Mozilla/5.0"}
+        result = requests.get(
+            "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
+            headers=headers,
+        ).json()
 
         if result["code"] == 0:
             qrcode_url = f"https://tool.oschina.net/action/qrcode/generate?data={quote_plus(result['data']['url'])}&output=image/png&error=M&type=0&margin=4&size=4"
@@ -171,9 +185,7 @@ class EmailConfigDialog(QDialog):
 
     def check_login_status(self):
         # 查询登录状态
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers = {"User-Agent": "Mozilla/5.0"}
         params = {
             "qrcode_key": self.qrcode_key,
             "source": "main-fe-header",
@@ -181,14 +193,16 @@ class EmailConfigDialog(QDialog):
         result_cookie = requests.get(
             "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
             params=params,
-            headers=headers
+            headers=headers,
         )
 
         result_data = result_cookie.json()["data"]
 
         if result_data["code"] == 0:
             cookie_dict = requests.utils.dict_from_cookiejar(result_cookie.cookies)
-            self.cookie_result = "; ".join([f"{key}={value}" for key, value in cookie_dict.items()])
+            self.cookie_result = "; ".join(
+                [f"{key}={value}" for key, value in cookie_dict.items()]
+            )
             self.cookie_status_label.setText("Cookie获取成功")
             self.submit_button.setEnabled(True)  # Cookie成功获取后，激活提交按钮
             print("\n获取cookie成功")
@@ -220,20 +234,20 @@ class EmailConfigDialog(QDialog):
             "enable_email": self.enable_email_checkbox.isChecked(),
             "enable_check_lv2avatarat": self.enable_check_lv2avatarat_checkbox.isChecked(),
             "enable_check_replyimage": self.enable_check_replyimage_checkbox.isChecked(),
-            "cookie": self.cookie_result  # 返回获取到的cookie
+            "cookie": self.cookie_result,  # 返回获取到的cookie
         }
 
     def auto_select_smtp_server(self):
         # 自动根据邮箱识别服务器
         email = self.sender_email_input.text()
         if email and "@" in email:
-            domain = email.split('@')[1]
+            domain = email.split("@")[1]
             domain_key = f"@{domain}"
             if domain_key in self.smtps:
                 # 自动设置服务器和端口
                 self.smtp_server_combo.setCurrentText(domain_key)
                 smtp_info = self.smtps[domain_key]
-                self.smtp_port_combo.setCurrentText(str(smtp_info['port']))
+                self.smtp_port_combo.setCurrentText(str(smtp_info["port"]))
             else:
                 # 如果未识别到，重置为可自动识别
                 self.smtp_server_combo.setCurrentText("可自动识别")
@@ -283,7 +297,7 @@ class EmailConfigDialog(QDialog):
         return self.smtp_port_combo.currentText()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     smtps = {
         "@aliyun.com": {"server": "smtp.aliyun.com", "port": 465},
         "@gmail.com": {"server": "smtp.gmail.com", "port": 465},
@@ -296,7 +310,7 @@ if __name__ == '__main__':
         "@sohu.com": {"server": "smtp.sohu.com", "port": 465},
         "@hotmail.com": {"server": "smtp.live.com", "port": 587},
         "@outlook.com": {"server": "smtp.office365.com", "port": 587},
-        "@qq.com": {"server": "smtp.qq.com", "port": 465}
+        "@qq.com": {"server": "smtp.qq.com", "port": 465},
     }
 
     # 调用get_email_config并传递smtps参数

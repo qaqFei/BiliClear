@@ -1,4 +1,4 @@
-#这段代码不由qaq_fei维护，问题请联系Felix3322
+# 这段代码不由qaq_fei维护，问题请联系Felix3322
 import os
 from datetime import datetime
 
@@ -27,14 +27,34 @@ import requests
 from os.path import exists
 from PyQt6.QtCore import Qt, QTimer, QTime, QUrl
 from PyQt6.QtGui import QIcon, QTextCursor, QDesktopServices, QColor
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel,
-                             QTableWidget, QTableWidgetItem, QHeaderView, QSplitter, QLineEdit, QAbstractItemView,
-                             QDialog, QFormLayout, QCheckBox, QSpinBox, QMessageBox, QComboBox, QProgressBar)
+from PyQt6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QTextEdit,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QSplitter,
+    QLineEdit,
+    QAbstractItemView,
+    QDialog,
+    QFormLayout,
+    QCheckBox,
+    QSpinBox,
+    QMessageBox,
+    QComboBox,
+    QProgressBar,
+)
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from os import environ
 import concurrent.futures
+
 environ["gui"] = "enable"
 print("正在读取设置，初始化。。。")
 import biliclear
@@ -42,17 +62,17 @@ import gpt
 
 
 # 方式3：通过设置 rcParams 全局替换 sans-serif 字体，解决中文显示问题
-plt.style.use('dark_background')
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
-plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+plt.style.use("dark_background")
+plt.rcParams["font.sans-serif"] = ["SimHei"]  # 设置字体为黑体
+plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
 print("正在加载函数，请稍等。。。")
-CONFIG_FILE = './config.json'
+CONFIG_FILE = "./config.json"
 
 
 def load_config():
     """加载配置文件"""
     if exists(CONFIG_FILE):
-        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     else:
         return None
@@ -60,7 +80,7 @@ def load_config():
 
 def save_config(config):
     """保存配置文件"""
-    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
 
 
@@ -73,48 +93,52 @@ class SettingsDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle('配置设置')
+        self.setWindowTitle("配置设置")
         layout = QFormLayout()
 
         # GPT 设置
-        self.enable_gpt_checkbox = QCheckBox('启用 GPT')
-        self.enable_gpt_checkbox.setChecked(self.config.get('enable_gpt', False))
-        layout.addRow('启用 GPT:', self.enable_gpt_checkbox)
+        self.enable_gpt_checkbox = QCheckBox("启用 GPT")
+        self.enable_gpt_checkbox.setChecked(self.config.get("enable_gpt", False))
+        layout.addRow("启用 GPT:", self.enable_gpt_checkbox)
 
-        self.gpt_apibase_input = QLineEdit(self.config.get('gpt_apibase', 'https://api.openai.com/v1'))
-        layout.addRow('GPT API Base:', self.gpt_apibase_input)
+        self.gpt_apibase_input = QLineEdit(
+            self.config.get("gpt_apibase", "https://api.openai.com/v1")
+        )
+        layout.addRow("GPT API Base:", self.gpt_apibase_input)
 
-        self.gpt_apikey_input = QLineEdit(self.config.get('gpt_apikey', ''))
-        layout.addRow('GPT API Key:', self.gpt_apikey_input)
+        self.gpt_apikey_input = QLineEdit(self.config.get("gpt_apikey", ""))
+        layout.addRow("GPT API Key:", self.gpt_apikey_input)
 
-        self.gpt_model_input = QLineEdit(self.config.get('gpt_model', 'gpt-4o-mini'))
-        layout.addRow('GPT Model:', self.gpt_model_input)
+        self.gpt_model_input = QLineEdit(self.config.get("gpt_model", "gpt-4o-mini"))
+        layout.addRow("GPT Model:", self.gpt_model_input)
 
         # Email 设置
-        self.enable_email_checkbox = QCheckBox('启用 Email 报告')
-        self.enable_email_checkbox.setChecked(self.config.get('enable_email', True))
-        layout.addRow('启用 Email 报告:', self.enable_email_checkbox)
+        self.enable_email_checkbox = QCheckBox("启用 Email 报告")
+        self.enable_email_checkbox.setChecked(self.config.get("enable_email", True))
+        layout.addRow("启用 Email 报告:", self.enable_email_checkbox)
 
-        self.sender_email_input = QLineEdit(self.config.get('sender_email', ''))
-        layout.addRow('发送者 Email:', self.sender_email_input)
+        self.sender_email_input = QLineEdit(self.config.get("sender_email", ""))
+        layout.addRow("发送者 Email:", self.sender_email_input)
 
-        self.sender_password_input = QLineEdit(self.config.get('sender_password', ''))
+        self.sender_password_input = QLineEdit(self.config.get("sender_password", ""))
         self.sender_password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        layout.addRow('Email 密码:', self.sender_password_input)
+        layout.addRow("Email 密码:", self.sender_password_input)
 
         # 其他设置
         self.reply_limit_input = QSpinBox()
         self.reply_limit_input.setMinimum(10)
         self.reply_limit_input.setMaximum(1000)
-        self.reply_limit_input.setValue(self.config.get('reply_limit', 40))
-        layout.addRow('评论获取上限:', self.reply_limit_input)
+        self.reply_limit_input.setValue(self.config.get("reply_limit", 40))
+        layout.addRow("评论获取上限:", self.reply_limit_input)
 
-        self.enable_check_lv2_checkbox = QCheckBox('启用 Lv2 头像检测')
-        self.enable_check_lv2_checkbox.setChecked(self.config.get('enable_check_lv2avatarat', False))
-        layout.addRow('启用 Lv2 头像检测:', self.enable_check_lv2_checkbox)
+        self.enable_check_lv2_checkbox = QCheckBox("启用 Lv2 头像检测")
+        self.enable_check_lv2_checkbox.setChecked(
+            self.config.get("enable_check_lv2avatarat", False)
+        )
+        layout.addRow("启用 Lv2 头像检测:", self.enable_check_lv2_checkbox)
 
         # 保存按钮
-        save_button = QPushButton('保存')
+        save_button = QPushButton("保存")
         save_button.clicked.connect(self.save_settings)
         layout.addWidget(save_button)
 
@@ -122,25 +146,35 @@ class SettingsDialog(QDialog):
 
     def save_settings(self):
         """保存设置并写入配置文件"""
-        self.config['enable_gpt'] = self.enable_gpt_checkbox.isChecked()
-        self.config['gpt_apibase'] = self.gpt_apibase_input.text()
-        self.config['gpt_apikey'] = self.gpt_apikey_input.text()
-        self.config['gpt_model'] = self.gpt_model_input.text()
-        self.config['enable_email'] = self.enable_email_checkbox.isChecked()
-        self.config['sender_email'] = self.sender_email_input.text()
-        self.config['sender_password'] = self.sender_password_input.text()
-        self.config['reply_limit'] = self.reply_limit_input.value()
-        self.config['enable_check_lv2avatarat'] = self.enable_check_lv2_checkbox.isChecked()
+        self.config["enable_gpt"] = self.enable_gpt_checkbox.isChecked()
+        self.config["gpt_apibase"] = self.gpt_apibase_input.text()
+        self.config["gpt_apikey"] = self.gpt_apikey_input.text()
+        self.config["gpt_model"] = self.gpt_model_input.text()
+        self.config["enable_email"] = self.enable_email_checkbox.isChecked()
+        self.config["sender_email"] = self.sender_email_input.text()
+        self.config["sender_password"] = self.sender_password_input.text()
+        self.config["reply_limit"] = self.reply_limit_input.value()
+        self.config["enable_check_lv2avatarat"] = (
+            self.enable_check_lv2_checkbox.isChecked()
+        )
 
         save_config(self.config)
-        QMessageBox.information(self, '设置已保存', '配置已成功保存！')
+        QMessageBox.information(self, "设置已保存", "配置已成功保存！")
         self.close()
 
 
 class CommentProcessorThread(threading.Thread):
     """后台线程，用于处理评论"""
 
-    def __init__(self, avids=None, result_queue=None, log_queue=None, bvid=None, enable_gpt=False, parent=None):
+    def __init__(
+        self,
+        avids=None,
+        result_queue=None,
+        log_queue=None,
+        bvid=None,
+        enable_gpt=False,
+        parent=None,
+    ):
         super().__init__()
         self.avids = avids
         self.result_queue = result_queue
@@ -150,7 +184,9 @@ class CommentProcessorThread(threading.Thread):
         self.video_counter = 0
         self.parent = parent
         self._stop_event = threading.Event()  # 停止标志位
-        self.max_workers = os.cpu_count() / 3  # 动态设置为 CPU 核心数的两倍，处理尽可能多的评论
+        self.max_workers = (
+            os.cpu_count() / 3
+        )  # 动态设置为 CPU 核心数的两倍，处理尽可能多的评论
 
     def stop(self):
         """设置停止标志位，通知线程安全退出"""
@@ -183,8 +219,12 @@ class CommentProcessorThread(threading.Thread):
         self.parent.update_current_avid(avid)  # 更新当前 avid 显示
 
         # 使用线程池并发处理该视频的评论，最大并发量取决于 CPU 核心数
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {executor.submit(self.process_reply, reply): reply for reply in replies}
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.max_workers
+        ) as executor:
+            futures = {
+                executor.submit(self.process_reply, reply): reply for reply in replies
+            }
 
             # 等待所有评论处理完成
             for future in concurrent.futures.as_completed(futures):
@@ -192,7 +232,9 @@ class CommentProcessorThread(threading.Thread):
                     future.result()  # 获取处理结果，若有异常将会抛出
                 except Exception as e:
                     reply = futures[future]
-                    self.log_queue.put(f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}")
+                    self.log_queue.put(
+                        f"评论处理时发生错误: {reply['content']['message']} - 错误: {e}"
+                    )
 
     def run(self):
         """线程执行函数"""
@@ -219,7 +261,7 @@ class MainWindow(QWidget):
         # 加载配置
         self.config = load_config()
         if not self.config:
-            QMessageBox.critical(self, '错误', '未找到配置文件，程序将退出。')
+            QMessageBox.critical(self, "错误", "未找到配置文件，程序将退出。")
             sys.exit(1)
 
         # 创建线程安全队列用于传递数据
@@ -257,9 +299,11 @@ class MainWindow(QWidget):
         self.pie_timer.start(5000)  # 每隔5秒自动刷新一次
 
     def initUI(self):
-        self.setWindowTitle('BiliClear QTGUI')
+        self.setWindowTitle("BiliClear QTGUI")
         self.setGeometry(300, 300, 1200, 600)
-        self.setWindowIcon(QIcon('./res/icon.ico'))  # 设置窗口图标为根目录下的 res/icon.ico
+        self.setWindowIcon(
+            QIcon("./res/icon.ico")
+        )  # 设置窗口图标为根目录下的 res/icon.ico
 
         # 使用样式表设置深色主题和主色调
         self.setStyleSheet("""
@@ -321,8 +365,12 @@ class MainWindow(QWidget):
 
         self.comment_table = QTableWidget(0, 2, self)
         self.comment_table.setHorizontalHeaderLabels(["评论内容", "违规状态"])
-        self.comment_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.comment_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.comment_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.comment_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         left_layout.addWidget(self.comment_table)
 
         self.log_area = QTextEdit(self)
@@ -330,15 +378,15 @@ class MainWindow(QWidget):
         left_layout.addWidget(self.log_area)
 
         # 按钮
-        self.start_btn = QPushButton('获取视频评论', self)
+        self.start_btn = QPushButton("获取视频评论", self)
         self.start_btn.clicked.connect(self.start_processing)
         left_layout.addWidget(self.start_btn)
 
-        self.auto_btn = QPushButton('自动获取推荐视频评论', self)
+        self.auto_btn = QPushButton("自动获取推荐视频评论", self)
         self.auto_btn.clicked.connect(self.auto_get_videos)
         left_layout.addWidget(self.auto_btn)
 
-        self.settings_btn = QPushButton('设置', self)
+        self.settings_btn = QPushButton("设置", self)
         self.settings_btn.clicked.connect(self.show_settings_dialog)
         left_layout.addWidget(self.settings_btn)
 
@@ -358,7 +406,9 @@ class MainWindow(QWidget):
 
         # 当前 Avid 显示
         self.current_avid_label = QLabel("当前视频 Avid: 无")
-        self.current_avid_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.current_avid_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         self.current_avid_label.mousePressEvent = self.copy_avid_to_clipboard
         right_layout.addWidget(self.current_avid_label)
 
@@ -381,19 +431,23 @@ class MainWindow(QWidget):
         # 违规评论列表
         self.violation_table = QTableWidget(0, 1, self)
         self.violation_table.setHorizontalHeaderLabels(["违规评论"])
-        self.violation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.violation_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.violation_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.violation_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         right_layout.addWidget(self.violation_table)
 
-        github_btn = QPushButton('本项目Github主页', self)
+        github_btn = QPushButton("本项目Github主页", self)
         github_btn.clicked.connect(self.open_github)
         right_layout.addWidget(github_btn)
 
-        contributors_btn = QPushButton('本项目贡献者', self)
+        contributors_btn = QPushButton("本项目贡献者", self)
         contributors_btn.clicked.connect(self.open_contributors)
         right_layout.addWidget(contributors_btn)
 
-        api_btn = QPushButton('ChatGPT API管理页面', self)
+        api_btn = QPushButton("ChatGPT API管理页面", self)
         api_btn.clicked.connect(self.open_api_keys)
         right_layout.addWidget(api_btn)
 
@@ -412,14 +466,18 @@ class MainWindow(QWidget):
         """生成统计文本"""
         violation_rate = 0
         if biliclear.replyCount > 0:
-            violation_rate = (biliclear.violationsReplyCount / biliclear.replyCount) * 100
+            violation_rate = (
+                biliclear.violationsReplyCount / biliclear.replyCount
+            ) * 100
 
-        return (f"BiliClear 数据统计\n"
-                f"已检查视频: {biliclear.videoCount}\n"
-                f"已检查评论: {biliclear.replyCount}\n"
-                f"违规评论: {biliclear.violationsReplyCount}\n"
-                f"评论违规率: {violation_rate:.5f}%\n"
-                f"B站API风控中: {biliclear.waitingRiskControl}")
+        return (
+            f"BiliClear 数据统计\n"
+            f"已检查视频: {biliclear.videoCount}\n"
+            f"已检查评论: {biliclear.replyCount}\n"
+            f"违规评论: {biliclear.violationsReplyCount}\n"
+            f"评论违规率: {violation_rate:.5f}%\n"
+            f"B站API风控中: {biliclear.waitingRiskControl}"
+        )
 
     def update_stats_label(self):
         """更新统计显示"""
@@ -457,7 +515,7 @@ class MainWindow(QWidget):
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                avid = data['data']['aid']
+                avid = data["data"]["aid"]
                 return avid
             else:
                 self.log_message(f"API 请求失败，状态码: {response.status_code}")
@@ -476,8 +534,9 @@ class MainWindow(QWidget):
             self.log_message("已有一个任务正在进行，请稍候...")
             return
 
-        self.processor_thread = CommentProcessorThread(avids, self.result_queue, self.log_queue, self.current_bvid,
-                                                       parent=self)
+        self.processor_thread = CommentProcessorThread(
+            avids, self.result_queue, self.log_queue, self.current_bvid, parent=self
+        )
         self.processor_thread.start()
 
     def update_current_avid(self, avid):
@@ -491,7 +550,7 @@ class MainWindow(QWidget):
         self.log_message("Avid 已复制到剪贴板")
 
     def add_comment_to_table(self, reply, isp, rule):
-        comment_text = reply['content']['message']
+        comment_text = reply["content"]["message"]
         row_position = self.comment_table.rowCount()
         self.comment_table.insertRow(row_position)
 
@@ -517,7 +576,9 @@ class MainWindow(QWidget):
             violation_row = self.violation_table.rowCount()
             self.violation_table.insertRow(violation_row)
             violation_item = QTableWidgetItem(comment_text)
-            violation_item.setFlags(violation_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            violation_item.setFlags(
+                violation_item.flags() & ~Qt.ItemFlag.ItemIsEditable
+            )
             self.violation_table.setItem(violation_row, 0, violation_item)
 
             # 统计违规原因
@@ -525,7 +586,10 @@ class MainWindow(QWidget):
                 self.violation_reasons[rule] = 0
             self.violation_reasons[rule] += 1
 
-        if self.comment_table.verticalScrollBar().value() == self.comment_table.verticalScrollBar().maximum():
+        if (
+            self.comment_table.verticalScrollBar().value()
+            == self.comment_table.verticalScrollBar().maximum()
+        ):
             self.comment_table.scrollToBottom()
 
         # 更新统计数据展示
@@ -536,11 +600,12 @@ class MainWindow(QWidget):
 
     def log_message(self, message):
         """日志显示，带时间戳和日志级别，并根据级别高亮显示"""
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # 获取当前时间
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 获取当前时间
         log_entry = f"[{current_time}] [GUI Log] {message}"  # 格式化日志内容
 
         self.log_area.append(log_entry)  # 添加日志内容到日志窗口
         self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+
     def timerEvent(self, event):
         """定时器事件，用于检查队列并更新 UI"""
         try:
@@ -568,7 +633,9 @@ class MainWindow(QWidget):
 
         if wait_match:
             wait_time = int(wait_match.group(1))  # 提取等待的秒数
-            self.log_message(f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒...")
+            self.log_message(
+                f"检测到等待 {wait_time}s, 暂停自动任务重启 {wait_time} 秒..."
+            )
             self.is_paused = True
 
             # 显示进度条并开始倒计时
@@ -595,6 +662,7 @@ class MainWindow(QWidget):
             self.progress_bar.setVisible(False)
             self.progress_timer.stop()
             self.resume_auto_restart()
+
     def resume_auto_restart(self):
         """恢复自动任务重启"""
         self.is_paused = False
@@ -612,13 +680,12 @@ class MainWindow(QWidget):
         """更新饼图，显示违规原因占比"""
         self.ax.clear()
 
-
         if self.pie_chart_type_combo.currentText() == "违规原因占比":
             labels = list(self.violation_reasons.keys())
             data = list(self.violation_reasons.values())
-            self.ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
+            self.ax.pie(data, labels=labels, autopct="%1.1f%%", startangle=90)
 
-        self.ax.axis('equal')  # 保证饼图是圆形的
+        self.ax.axis("equal")  # 保证饼图是圆形的
         self.canvas.draw()
 
     def open_github(self):
@@ -627,7 +694,9 @@ class MainWindow(QWidget):
 
     def open_contributors(self):
         """打开贡献者页面"""
-        QDesktopServices.openUrl(QUrl("https://github.com/qaqFei/BiliClear/graphs/contributors"))
+        QDesktopServices.openUrl(
+            QUrl("https://github.com/qaqFei/BiliClear/graphs/contributors")
+        )
 
     def open_api_keys(self):
         """打开ChatGPT API页面"""
@@ -655,7 +724,7 @@ class Stream:
         """将输出消息格式化并显示在日志窗口"""
         if message.strip():
             # 获取当前时间
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             # 格式化日志信息，添加时间戳
             formatted_message = f"[{current_time}] [Main Log] {message.strip()}"
             # 将格式化后的日志显示在日志窗口
@@ -668,7 +737,7 @@ class Stream:
 
 
 print("正在启动GUI，请稍等。。。")
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
