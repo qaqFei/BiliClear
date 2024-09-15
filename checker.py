@@ -12,6 +12,12 @@ class Checker:
         self.rules_exact: list[str | list[str]] = config.get("rules_exact", [])
         self.rules_elastic = config.get("rules_elastic", [])
 
+        self.regex_list = []
+        with open("./res/rules.txt", "r", encoding="utf-8") as f:
+            for line in f.readlines:
+                if not line.startswith('#'):
+                    self.regex_list.append(re.compile(line))
+
     def normalize_text(self, text: str) -> str:
         "将文本转换为小写、简体中文和英文符号"
         text = text.lower()
@@ -140,6 +146,25 @@ class Checker:
                 continue
         return (False, "") if (value < threshold) else (True, "跳词规则程度匹配")
 
+    def check_regex(self, text: str, compiled_patterns: list):
+        """
+        使用编译后的正则表达式列表检查文本。
+
+        参数:
+            text (str): 要检查的文本。
+            compiled_patterns (list): 编译后的正则表达式列表。
+
+        返回:
+            tuple: (bool, str) 如果匹配成功，返回 (True, 匹配的正则表达式)，否则返回 (False, "")。
+        """
+
+        text = self.normalize_text(text)
+
+        for pattern in compiled_patterns:
+            if pattern.search(text):
+                return True, pattern.pattern  # 返回匹配成功的正则表达式模式
+        return False, ""  # 没有匹配成功时返回 False 和空字符串
+
     def check(self, text: str, threshold: float = 0.7):
         "使用使用方法检查字符串"
         checks: list[tuple[bool, str]] = [
@@ -147,6 +172,7 @@ class Checker:
             self.check_v2(text, threshold),
             self.check_v3(text, threshold),
             self.check_v4(text, threshold),
+            self.check_regex(text, self.regex_list)
         ]
         for isp, r in checks:
             if isp:
