@@ -99,7 +99,7 @@ def render():
         root.create_text(
             w * 0.02,
             h * 0.25,
-            text = f"tip: Ctrl + I 可以手动输入bv号进行检查并举报违规内容",
+            text = f"tip: Ctrl + I 可以手动输入bv号, Ctrl + U 可以手动输入uid",
             font = f"{(w + h) / 100}px BiliClear_UIFont",
             textAlign = "left",
             textBaseline = "top",
@@ -212,6 +212,14 @@ def addDesignateVideo():
     else:
         root.run_js_code("alert('输入有误, 请重新输入');")
 
+def processUser():
+    uid = root.run_js_code("prompt('请输入UID: ');")
+    if isinstance(uid, str) and uid.isdigit():
+        biliclear.processUser(uid)
+        root.run_js_code(f"alert('UID: {uid} 已检查完毕');")
+    else:
+        root.run_js_code("alert('输入有误, 请重新输入');")
+
 def resize(nw: int, nh: int):
     global w, h
     w, h = nw, nh
@@ -253,8 +261,11 @@ while not root.run_js_code("loaded2233"):
 root.shutdown_fileserver()
 
 root.jsapi.set_attr("addDesignateVideo", addDesignateVideo)
+root.jsapi.set_attr("processUser", processUser)
 root.run_js_code("_addDesignateVideo = (e) => {if (e.ctrlKey && !e.repeat && e.key.toLowerCase() == 'i') pywebview.api.call_attr('addDesignateVideo');};")
+root.run_js_code("_processUser = (e) => {if (e.ctrlKey && !e.repeat && e.key.toLowerCase() == 'u') pywebview.api.call_attr('processUser');};")
 root.run_js_code("window.addEventListener('keydown', _addDesignateVideo);")
+root.run_js_code("window.addEventListener('keydown', _processUser);")
 root.reg_event("resized", resize)
 
 if "--window-host" in sys.argv:

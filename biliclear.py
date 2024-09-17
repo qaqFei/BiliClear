@@ -44,6 +44,7 @@ def putConfigVariables(config: dict):
     global reply_limit, enable_gpt
     global enable_check_lv2avatarat
     global enable_check_replyimage
+    global enable_check_user
     
     headers = config["headers"]
     bili_report_api = config.get("bili_report_api", True)
@@ -55,7 +56,8 @@ def putConfigVariables(config: dict):
     gpt.openai.api_key = config.get("gpt_apikey", "")
     gpt.gpt_model = config.get("gpt_model", "gpt-4o-mini")
     enable_check_lv2avatarat = config.get("enable_check_lv2avatarat", False)
-    enable_check_replyimage = config.get("enable_check_replyimage", True)
+    enable_check_replyimage = config.get("enable_check_replyimage", False)
+    enable_check_user = config.get("enable_check_user", False)
     if reply_limit <= 20:
         reply_limit = 100
     
@@ -98,7 +100,8 @@ if not exists("./config.json"):
         gpt.openai.api_key = ""
         gpt.gpt_model = "gpt-4o-mini"
         enable_check_lv2avatarat = False
-        enable_check_replyimage = True
+        enable_check_replyimage = False
+        enable_check_user = False
     else:
         putConfigVariables(gui_config.get_email_config())
 else:
@@ -176,8 +179,8 @@ def getReplys(avid: str | int):
         page += 1
     return replies
 
-def checkUser(uid: int):
-    "检查用户是否需要举报"
+def _checkUser(uid: int|str):
+    "检查用户是否需要举报 (用于检测)"
     user_crad = requests.get(
         f"https://api.bilibili.com/x/web-interface/card?mid={uid}",
         headers = headers
@@ -212,6 +215,37 @@ def checkUser(uid: int):
             return True
     
     return False
+
+def reqBiliReportUser(uid: int|str):
+    "调用B站举报用户API"
+    result = requests.post(
+        "https://space.bilibili.com/ajax/report/add",
+        headers = headers,
+        data = {
+            "mid": int(uid),
+            "reason": "1, 2, 3",
+            "reason_v2": 1,
+            "csrf": csrf
+        }
+    ).json()
+    time.sleep(3.5)
+    result_code = result["code"]
+    if result_code not in (0, 12019):
+        print("b站举报用户API调用失败, 返回体：", result)
+    elif result_code == 0:
+        print("Bilibili举报用户API调用成功")
+    elif result_code == 12019:
+        print("举报过于频繁, 等待15s")
+        time.sleep(15)
+        return reqBiliReportUser(uid)
+
+def processUser(uid: int|str):
+    "处理用户"
+    if _checkUser(uid):
+        print(f"用户{uid}违规")
+        reqBiliReportUser(uid)
+    else:
+        print(f"用户{uid}未违规")
         
 def isPorn(text: str):
     "判断评论是否为色情内容 (使用规则, rules.yaml)"
@@ -238,9 +272,9 @@ def reqBiliReportReply(data: dict, rule: str | None):
     time.sleep(3.5)
     result_code = result["code"]
     if result_code not in (0, 12019):
-        print("b站举报API调用失败, 返回体：", result)
+        print("b站举报评论API调用失败, 返回体：", result)
     elif result_code == 0:
-        print("Bilibili举报API调用成功")
+        print("Bilibili举报评论API调用成功")
     elif result_code == 12019:
         print("举报过于频繁, 等待15s")
         time.sleep(15)
@@ -322,23 +356,19 @@ def videoIsViolations(avid: str | int):
 
     return isp, r
 
-def processVideo(avid: str | int):
-    "处理视频并举报"
-    isp, r = videoIsViolations(avid)
-
 def _setMethod():
     global method
     method = None
     method_choices = {
         "1": "自动获取推荐视频评论",
-        "2": "获取指定视频评论"
+        "2": "获取指定视频评论",
+        "3": "检查指定UID"
     }
 
     while method not in method_choices.keys():
         if method is not None:
             print("输入错误")
 
-        print("tip: 请定期检查bilibili cookie是否过期 (BiliClear启动时会自动检查)\n")
         for k, v in method_choices.items():
             print(f"{k}. {v}")
         method = input("选择: ")
@@ -362,8 +392,9 @@ violationsReplies = []
 
 
 def _checkVideo(avid: str | int):
-    processVideo(avid)
     for reply in getReplys(avid):
+        if enable_check_user:
+            processUser(reply["mid"])
         processReply(reply)
 
 def checkNewVideos():
@@ -419,7 +450,9 @@ if __name__ == "__main__":
                 case "1":
                     checkNewVideos()
                 case "2":
-                    checkVideo(input("\n输入视频bvid: "))
+                    checkVideo(input("输入视频bvid: "))
+                case "3":
+                    processUser(input("输入UID: "))
                 case _:
                     print("链接格式错误")
         except Exception as e:
