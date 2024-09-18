@@ -12,7 +12,6 @@ import requests
 
 import biliauth
 import gpt
-import gui_config
 import syscmds
 import checker
 from compatible_getpass import getpass
@@ -86,24 +85,21 @@ def checkCookie():
     return result["code"] == 0 and not result.get("data", {}).get("refresh", True)
 
 if not exists("./config.json"):
-    if not environ.get("gui", False):
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-            "Cookie": getCookieFromUser()
-        }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Cookie": getCookieFromUser()
+    }
 
-        csrf = getCsrf(headers["Cookie"])
+    csrf = getCsrf(headers["Cookie"])
 
-        bili_report_api = True
-        reply_limit = 100
-        enable_gpt = False
-        gpt.openai.api_key = ""
-        gpt.gpt_model = "gpt-4o-mini"
-        enable_check_lv2avatarat = False
-        enable_check_replyimage = False
-        enable_check_user = False
-    else:
-        putConfigVariables(gui_config.get_email_config())
+    bili_report_api = True
+    reply_limit = 100
+    enable_gpt = False
+    gpt.openai.api_key = ""
+    gpt.gpt_model = "gpt-4o-mini"
+    enable_check_lv2avatarat = False
+    enable_check_replyimage = False
+    enable_check_user = False
 else:
     with open("./config.json", "r", encoding="utf-8") as f:
         try:
@@ -127,12 +123,6 @@ except Exception as e:
 
 text_checker = checker.Checker()
 face_detector = cv2.CascadeClassifier("./res/haarcascade_frontalface_default.xml")
-
-if not environ.get("gui", False):
-    loaded_sleep_time = 3.0
-    print(f"加载完成, BiliClear将在{loaded_sleep_time}s后开始运行")
-    time.sleep(loaded_sleep_time)
-    syscmds.clearScreen()
 
 def _btyes2cv2im(byte_data):
     nparr = np.frombuffer(byte_data, np.uint8)
@@ -351,11 +341,6 @@ def processReply(reply: dict):
     violationsReplies = violationsReplies[:1500]
     return isp, r
 
-def videoIsViolations(avid: str | int):
-    isp, r = False, None
-
-    return isp, r
-
 def _setMethod():
     global method
     method = None
@@ -365,6 +350,8 @@ def _setMethod():
         "3": "检查指定UID"
     }
 
+    print("BiliClear - github.com/qaqFei/BiliClear")
+    print("\n请选择操作: ")
     while method not in method_choices.keys():
         if method is not None:
             print("输入错误")

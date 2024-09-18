@@ -3,7 +3,7 @@ import sys
 import json
 from threading import Thread
 from ctypes import windll
-# from os import environ; environ["gui"] = "enable"
+from os import environ; environ["gui"] = "enable"
 
 import biliclear
 import web_canvas as webcvapis
