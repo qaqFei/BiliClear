@@ -19,9 +19,6 @@
 ### 2. 启动程序
 - **WebUI 仅限 Windows 使用**, 您可以通过以下命令启动对应版本的 BiliClear：
   ```bash
-  # 启动 QT GUI (维护人静几个星期先...)
-  python ./biliclear_gui_qt.py
-
   # 启动 WebUI
   python ./biliclear_gui_webui.py
 
@@ -33,21 +30,8 @@
 - **与 `config.json` 相关的异常**：
   - 如果问题无法解决, 可以删除 `config.json` 文件
 
----
-
-## 项目职责分工 👥
-- **qaqFei** 负责:
-  - **WebUI** 的编写
-  - **项目的主要逻辑判断**
-  - **主程序的开发与维护**
-  - **其他代码的的开发与维护**
-  - **项目拥有者**
-
-- **Felix3322** 负责 (静着! [#72](https://github.com/qaqFei/BiliClear/issues/72)):
-  - **QT GUI** 的开发与维护
-  - **GUI 配置（guiconfig）**
-  - **安装程序（installer）**
-  - **GPT 功能的实现**
+### 4. 规则的更新
+- 规则文件更新源存放在 `./RULE_SOURCE` 文件中, 包含规则文件的链接, 您可以自行更改规则文件更新源
 
 ---
 

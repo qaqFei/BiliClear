@@ -6,8 +6,13 @@ from Levenshtein import ratio
 
 class Checker:
     def __init__(self) -> None:
-        with open("./res/rules.yaml", "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        try:
+            with open("./res/rules.yaml", "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+        except Exception as e:
+            print("警告: 无法加载规则文件,", e)
+            config = {}
+            
         self.rules_exact: list[str | list[str]] = config.get("rules_exact", [])
         self.rules_elastic = config.get("rules_elastic", [])
 

@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from os import chdir, environ
 from os.path import exists, dirname, abspath
+from threading import Thread
 
 import cv2
 import numpy as np
@@ -21,6 +22,20 @@ sys.excepthook = lambda *args: [print("^C"), exec("raise SystemExit")] if Keyboa
 selfdir = dirname(sys.argv[0])
 if selfdir == "": selfdir = abspath(".")
 chdir(selfdir)
+
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+loaded = False
+
+def checkRuleUpdate():
+    try:
+        new_rules = requests.get(open("./RULE_SOURCE", "r", encoding="utf-8").read(), verify=False).content.decode("utf-8")
+        with open("./res/rules.yaml", "w", encoding="utf-8") as f:
+            f.write(new_rules)
+    except Exception as e:
+        with open("update_rule_err.txt", "w", encoding="utf-8") as f:
+            f.write(f"{datetime.now()}\n{e}")
+
+Thread(target=checkRuleUpdate, daemon=True).start()
 
 def saveConfig():
     with open("./config.json", "w", encoding="utf-8") as f:
