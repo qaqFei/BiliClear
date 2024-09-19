@@ -1,6 +1,6 @@
 import json
-import re  # used for rules matching
 import sys
+import re
 import time
 from datetime import datetime
 from os import chdir, environ
@@ -49,7 +49,8 @@ def saveConfig():
             "gpt_apikey": gpt.openai.api_key,
             "gpt_model": gpt.gpt_model,
             "enable_check_lv2avatarat": enable_check_lv2avatarat,
-            "enable_check_replyimage": enable_check_replyimage
+            "enable_check_replyimage": enable_check_replyimage,
+            "enable_check_user": enable_check_user
         }, indent=4, ensure_ascii=False))
 
 def putConfigVariables(config: dict):
@@ -88,7 +89,9 @@ def getCookieFromUser():
             return getpass("Bilibili cookie: ")
         else:
             return biliauth.bilibiliAuth()
-
+    else:
+        return biliauth.bilibiliAuth()
+        
 def checkCookie():
     result = requests.get(
         "https://passport.bilibili.com/x/passport-login/web/cookie/info",
@@ -402,7 +405,6 @@ waitingRiskControl = False
 checkedVideos = []
 checkedReplies = []
 violationsReplies = []
-
 
 def _checkVideo(avid: str | int):
     for reply in getReplys(avid):

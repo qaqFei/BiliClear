@@ -1,8 +1,8 @@
+numpy~=2.1.1
 openai~=0.28.1
-requests~=2.32.3
-PyYAML~=6.0.2
-Levenshtein~=0.25.1
-opencv-python~=4.10.0.84
-numpy~=2.0.2
-pywebview~=5.2
+opencv-python-headless~=4.10.0.84
 Pillow~=10.4.0
+python-Levenshtein~=0.25.1
+pywebview~=5.2
+PyYAML~=6.0.2
+requests~=2.32.3
