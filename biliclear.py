@@ -276,13 +276,17 @@ def reqBiliReportReply(data: dict, rule: str | None):
     ).json()
     time.sleep(3.5)
     result_code = result["code"]
-    if result_code not in (0, 12019):
-        print("b站举报评论API调用失败, 返回体：", result)
+    if result_code not in (0, 12019, -352):
+        print("b站举报评论API调用失败, 返回体:", result)
     elif result_code == 0:
         print("Bilibili举报评论API调用成功")
     elif result_code == 12019:
         print("举报过于频繁, 等待15s")
         time.sleep(15)
+        return reqBiliReportReply(data, rule)
+    elif result_code == -352:
+        print(f"举报评论的B站API调用失败, 返回 -352, 请尝试手动举报1次, {avid2bvid(data["oid"])}")
+        waitRiskControl()
         return reqBiliReportReply(data, rule)
 
 def reportReply(data: dict, r: str | None):
@@ -382,6 +386,13 @@ def bvid2avid(bvid: str):
         headers = headers
     ).json()
     return result["data"]["aid"]
+
+def avid2bvid(avid: str):
+    result = requests.get(
+        f"https://api.bilibili.com/x/web-interface/view?aid={avid}",
+        headers = headers
+    ).json()
+    return result["data"]["bvid"]
 
 videoCount = 0
 replyCount = 0
