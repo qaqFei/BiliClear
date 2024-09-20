@@ -1,7 +1,5 @@
 @echo off
 
-cd ..
-
 python -m venv release-ven
 
 .\release-ven\Scripts\pip install -r requirements.txt
