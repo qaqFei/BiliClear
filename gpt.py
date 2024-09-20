@@ -6,8 +6,8 @@ RateLimitError = openai.error.RateLimitError
 
 def _gpt_replay(content, prompt) -> str:
     response = openai.ChatCompletion.create(
-        model=gpt_model,
-        messages=[
+        model = gpt_model,
+        messages = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": content}
         ]

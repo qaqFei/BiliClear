@@ -418,8 +418,7 @@ def checkNewVideos():
     print("".join([("\n" if videoCount != 0 else ""), "开始检查新一轮推荐视频..."]))
     print(f"已检查视频: {videoCount}")
     print(f"已检查评论: {replyCount}")
-    print(
-        f"已举报评论: {violationsReplyCount} 评论违规率: {((violationsReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
+    print(f"已举报评论: {violationsReplyCount} 评论违规率: {((violationsReplyCount / replyCount * 100) if replyCount != 0 else 0.0):.5f}%")
     print()  # next line
 
     for avid in getVideos():
@@ -469,7 +468,7 @@ if __name__ == "__main__":
                 case "3":
                     processUser(input("输入UID: "))
                 case _:
-                    print("链接格式错误")
+                    assert False, "unknow method"
         except Exception as e:
             print("错误", repr(e))
             if isinstance(e, json.JSONDecodeError):
